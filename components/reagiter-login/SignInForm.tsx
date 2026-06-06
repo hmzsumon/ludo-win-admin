@@ -40,7 +40,7 @@ const SignInForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
   });
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-4 px-4">
       <Field label="Your email address" error={errors.email?.message}>
         <div className="relative">
           <Mail
@@ -72,7 +72,7 @@ const SignInForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
             type="button"
             aria-label="Toggle password"
             onClick={() => setShow((s) => !s)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[rgb(var(--app-text-muted))] hover:text-neutral-200"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[rgb(var(--app-text-muted))] hover:text-[rgb(var(--app-text))]"
           >
             {show ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
@@ -81,7 +81,7 @@ const SignInForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
         <Link href="/forgot-password" className="flex items-center justify-end">
           <button
             type="button"
-            className="text-xs font-medium text-[rgb(var(--app-text-muted))] hover:text-neutral-200"
+            className="text-xs font-medium text-[rgb(var(--app-text-muted))] hover:text-[rgb(var(--app-text))]"
           >
             Forgot password?
           </button>
