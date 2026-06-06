@@ -115,15 +115,15 @@ export default function PeriodStatCard({
       <div className="grid grid-cols-2 gap-2 ">
         <PeriodItem
           label="Today"
-          value={total}
+          value={today}
           suffix={suffix}
           color={valueColor(today, colorMode)}
         />
         <PeriodItem
           label="Total"
-          value={thisMonth}
+          value={total}
           suffix={suffix}
-          color={valueColor(thisMonth, colorMode)}
+          color={valueColor(total, colorMode)}
         />
       </div>
     </div>
