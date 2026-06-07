@@ -140,6 +140,77 @@ export interface IDashboardData {
   };
 }
 
+/* ──────────  Monthly Report Types  ────────── */
+export interface IMonthlyReportMoneyGroup {
+  gameFee?: number;
+  botWin?: number;
+  totalIncome?: number;
+  agentCommission?: number;
+  agentDepositCommission?: number;
+  agentWithdrawCommission?: number;
+  botLoss?: number;
+  totalBonus?: number;
+  depositBonus?: number;
+  referralBonus?: number;
+  dailyBonus?: number;
+  spinBonus?: number;
+  manualBonus?: number;
+  vipCashback?: number;
+  welcomeBonus?: number;
+  totalCost?: number;
+}
+
+export interface IMonthlyReportProfit {
+  grossIncome: number;
+  totalCost: number;
+  netProfit: number;
+  status: "profit" | "loss" | "break_even" | string;
+}
+
+export interface ISystemMonthlyReport {
+  _id: string;
+  monthKey: string;
+  periodStart: string;
+  periodEnd: string;
+  income: {
+    gameFee: number;
+    botWin: number;
+    totalIncome: number;
+  };
+  cost: {
+    agentCommission: number;
+    agentDepositCommission: number;
+    agentWithdrawCommission: number;
+    botLoss: number;
+    totalBonus: number;
+    depositBonus: number;
+    referralBonus: number;
+    dailyBonus: number;
+    spinBonus: number;
+    manualBonus: number;
+    vipCashback: number;
+    welcomeBonus: number;
+    totalCost: number;
+  };
+  profit: IMonthlyReportProfit;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface IMonthlyReportsResponse {
+  success: boolean;
+  message: string;
+  reports: ISystemMonthlyReport[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}
+
 /* ──────────  Total Overview Response Type  ────────── */
 export interface IOverviewData {
   companyInfo: {
@@ -272,6 +343,18 @@ export const adminApi = apiSlice.injectEndpoints({
       providesTags: ["Dashboard"],
     }),
 
+    /* ──────────  Get Monthly Reports  ────────── */
+    getMonthlyReports: builder.query<
+      IMonthlyReportsResponse,
+      { page?: number; limit?: number } | void
+    >({
+      query: (params) => ({
+        url: "/admin/monthly-reports",
+        params: params || { page: 1, limit: 24 },
+      }),
+      providesTags: ["MonthlyReports"],
+    }),
+
     /* ──────────  Get Maintenance Status  ────────── */
     getMaintenanceStatus: builder.query<
       { success: boolean; maintenance: IMaintenanceStatus },
@@ -302,6 +385,7 @@ export const {
   useGetUsersQuery,
   useGetAdminDashboardQuery,
   useGetTotalOverviewQuery,
+  useGetMonthlyReportsQuery,
   useGetMaintenanceStatusQuery,
   useUpdateMaintenanceStatusMutation,
 } = adminApi;

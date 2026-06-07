@@ -2,6 +2,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Bot,
+  CalendarDays,
   Download,
   Grid2x2,
   LifeBuoy,
@@ -38,6 +39,13 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "users", label: "All Users", icon: Users, href: "/users" },
   { key: "bots", label: "All Bots", icon: Bot, href: "/bots" },
   { key: "agents", label: "All Agents", icon: Users, href: "/agents" },
+
+  {
+    key: "monthly-reports",
+    label: "Monthly Reports",
+    icon: CalendarDays,
+    href: "/monthly-reports",
+  },
 
   {
     key: "deposits",

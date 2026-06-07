@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   title: "Orbit  - Admin Panel",
   description: "Trade on your favorite trading platforms with Capitalise",
   openGraph: {
-    title: "Ludo Party - Admin Panel",
+    title: "Ludo Win - Admin Panel",
     description: "Play Ludo with your friends online and have fun together",
     url: "https://sw999.bet",
     siteName: "Capitalise",
