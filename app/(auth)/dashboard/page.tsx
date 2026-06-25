@@ -13,7 +13,6 @@ import { useGetAdminDashboardQuery } from "@/redux/features/admin/adminApi";
 import {
   Banknote,
   Bot,
-  CircleDollarSign,
   Coins,
   Gift,
   HandCoins,
@@ -138,6 +137,25 @@ export default function AdminDashboardPage() {
                 iconBg="bg-emerald-400/10"
                 iconColor="text-emerald-400"
               />
+              <PeriodStatCard
+                title="Bot Loss Cost"
+                stat={d?.costBreakdown?.botLoss}
+                isDiamond
+                colorMode="cost"
+                icon={<Bot className="h-4 w-4" />}
+                iconBg="bg-rose-400/10"
+                iconColor="text-rose-400"
+              />
+
+              <PeriodStatCard
+                title="Bot Net PnL"
+                stat={d?.bots?.netPnL}
+                isDiamond
+                colorMode="auto"
+                icon={<Bot className="h-4 w-4" />}
+                iconBg="bg-violet-400/10"
+                iconColor="text-violet-400"
+              />
             </div>
 
             {/* ──────────  ROW 3: Cost Breakdown  ────────── */}
@@ -180,15 +198,7 @@ export default function AdminDashboardPage() {
                 iconBg="bg-rose-400/10"
                 iconColor="text-rose-400"
               />
-              <PeriodStatCard
-                title="Bot Loss Cost"
-                stat={d?.costBreakdown?.botLoss}
-                isDiamond
-                colorMode="cost"
-                icon={<Bot className="h-4 w-4" />}
-                iconBg="bg-rose-400/10"
-                iconColor="text-rose-400"
-              />
+
               <PeriodStatCard
                 title="Total Bonus Cost"
                 note="সব bonus মিলিয়ে মোট cost"
@@ -291,6 +301,19 @@ export default function AdminDashboardPage() {
                 iconColor="text-violet-400"
               />
               <PeriodStatCard
+                title="Agent Current Balance"
+                stat={{
+                  total: d?.agents?.currentBalance ?? 0,
+                  today: d?.agents?.currentBalance ?? 0,
+                  thisMonth: d?.agents?.currentBalance ?? 0,
+                  lastMonth: d?.agents?.currentBalance ?? 0,
+                }}
+                isDiamond
+                icon={<Landmark className="h-4 w-4" />}
+                iconBg="bg-violet-400/10"
+                iconColor="text-violet-400"
+              />
+              <PeriodStatCard
                 title="Withdraw Amount"
                 stat={d?.finance?.withdrawals?.amount}
                 isDiamond
@@ -305,14 +328,6 @@ export default function AdminDashboardPage() {
                 iconBg="bg-amber-400/10"
                 iconColor="text-amber-400"
               />
-              <PeriodStatCard
-                title="Withdraw Charge"
-                stat={d?.finance?.withdrawals?.charge}
-                isDiamond
-                icon={<CircleDollarSign className="h-4 w-4" />}
-                iconBg="bg-sky-400/10"
-                iconColor="text-sky-400"
-              />
             </div>
 
             {/* ──────────  ROW 5: Games, Bots, Users, Agents  ────────── */}
@@ -325,24 +340,7 @@ export default function AdminDashboardPage() {
                 iconBg="bg-amber-400/10"
                 iconColor="text-amber-400"
               />
-              <PeriodStatCard
-                title="Match Fee Collected"
-                stat={d?.games?.feeCollected}
-                isDiamond
-                colorMode="income"
-                icon={<Trophy className="h-4 w-4" />}
-                iconBg="bg-emerald-400/10"
-                iconColor="text-emerald-400"
-              />
-              <PeriodStatCard
-                title="Bot Net PnL"
-                stat={d?.bots?.netPnL}
-                isDiamond
-                colorMode="auto"
-                icon={<Bot className="h-4 w-4" />}
-                iconBg="bg-violet-400/10"
-                iconColor="text-violet-400"
-              />
+
               <PeriodStatCard
                 title="Users"
                 stat={d?.users?.count}
@@ -350,13 +348,7 @@ export default function AdminDashboardPage() {
                 iconBg="bg-sky-400/10"
                 iconColor="text-sky-400"
               />
-              <PeriodStatCard
-                title="Active Users"
-                stat={d?.users?.active}
-                icon={<Users className="h-4 w-4" />}
-                iconBg="bg-sky-400/10"
-                iconColor="text-sky-400"
-              />
+
               <PeriodStatCard
                 title="Agents"
                 stat={d?.agents?.count}
@@ -364,18 +356,13 @@ export default function AdminDashboardPage() {
                 iconBg="bg-violet-400/10"
                 iconColor="text-violet-400"
               />
+
               <PeriodStatCard
-                title="Agent Current Balance"
-                stat={{
-                  total: d?.agents?.currentBalance ?? 0,
-                  today: d?.agents?.currentBalance ?? 0,
-                  thisMonth: d?.agents?.currentBalance ?? 0,
-                  lastMonth: d?.agents?.currentBalance ?? 0,
-                }}
-                isDiamond
-                icon={<Landmark className="h-4 w-4" />}
-                iconBg="bg-violet-400/10"
-                iconColor="text-violet-400"
+                title="Active Users"
+                stat={d?.users?.active}
+                icon={<Users className="h-4 w-4" />}
+                iconBg="bg-sky-400/10"
+                iconColor="text-sky-400"
               />
             </div>
           </>
