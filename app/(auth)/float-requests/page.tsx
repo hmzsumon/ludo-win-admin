@@ -1,230 +1,194 @@
 "use client";
 
-/* ─────────────────────────────────────────────────────────────
- * Admin Float Requests UI
- * - Filter pending/approved/rejected + topup/return
- * - Approve/Reject with admin note
- * ──────────────────────────────────────────────────────────── */
-
+/* ────────── imports ────────── */
+import AdminFloatRequestDetails, {
+  type AdminFloatRequest,
+} from "@/components/float/AdminFloatRequestDetails";
+import AdminFloatRequestsTable from "@/components/float/AdminFloatRequestsTable";
+import Card from "@/components/new-ui/Card";
+import Tabs, { Tab } from "@/components/new-ui/Tabs";
+import { useAdminGetFloatRequestsQuery } from "@/redux/features/admin/adminSettlementApi";
 import { useMemo, useState } from "react";
-import toast from "react-hot-toast";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+/* ────────── helpers ────────── */
+const fmtNum = (n?: number, suffix = "") =>
+  `${Number(n ?? 0).toLocaleString("en-US", {
+    maximumFractionDigits: 3,
+  })}${suffix}`;
 
-import {
-  useAdminApproveFloatRequestMutation,
-  useAdminGetFloatRequestsQuery,
-  useAdminRejectFloatRequestMutation,
-} from "@/redux/features/admin/adminSettlementApi";
-
+/* ────────── page ────────── */
 export default function AdminFloatRequestsPage() {
   const [status, setStatus] = useState<"pending" | "approved" | "rejected">(
     "pending",
   );
   const [type, setType] = useState<"" | "topup" | "return">("");
+  const [channel, setChannel] = useState<
+    "" | "manual" | "binance" | "blockbee"
+  >("");
+  const [selected, setSelected] = useState<AdminFloatRequest | null>(null);
 
-  const {
-    data: res,
-    isLoading,
-    refetch,
-  } = useAdminGetFloatRequestsQuery({ status, type });
+  // paymentChannel API type এ না থাকায় এখানে পাঠানো হয়নি
+  // channel filter নিচে local ভাবে করা হয়েছে
+  const { data, isLoading, refetch } = useAdminGetFloatRequestsQuery({
+    status,
+    type,
+  });
 
-  const list = res?.data || [];
+  const list = (data?.data || []) as AdminFloatRequest[];
 
-  const [approve, { isLoading: approving }] =
-    useAdminApproveFloatRequestMutation();
-  const [reject, { isLoading: rejecting }] =
-    useAdminRejectFloatRequestMutation();
+  /* ────────── local channel filter fallback ────────── */
+  const rows = useMemo(() => {
+    if (!channel) return list;
+    return list.filter((item) => (item.paymentChannel || "manual") === channel);
+  }, [channel, list]);
 
-  const busy = approving || rejecting;
+  /* ────────── summary numbers ────────── */
+  const summary = useMemo(() => {
+    return rows.reduce(
+      (acc, item) => {
+        acc.count += 1;
+        acc.usdt += Number(item.amount || 0);
+        acc.float += Number(item.diamondsAmount || 0);
+        return acc;
+      },
+      { count: 0, usdt: 0, float: 0 },
+    );
+  }, [rows]);
 
-  const count = useMemo(() => list.length, [list]);
-
-  /* ────────── approve / reject ────────── */
-  const handleApprove = async (id: string) => {
-    const adminNote = prompt("Admin note (optional)") || "";
-    try {
-      await approve({ id, adminNote }).unwrap();
-      toast.success("Approved");
-      refetch();
-    } catch (e: any) {
-      toast.error(e?.data?.message || "Approve failed");
-    }
-  };
-
-  const handleReject = async (id: string) => {
-    const adminNote = prompt("Admin note (optional)") || "";
-    try {
-      await reject({ id, adminNote }).unwrap();
-      toast.success("Rejected");
-      refetch();
-    } catch (e: any) {
-      toast.error(e?.data?.message || "Reject failed");
-    }
-  };
+  const tabs: Tab[] = [
+    { key: "pending", label: "Pending" },
+    { key: "approved", label: "Approved" },
+    { key: "rejected", label: "Rejected" },
+  ];
 
   return (
     <main className="min-h-screen bg-transparent text-[rgb(var(--app-text))]">
-      <div className="mx-auto w-full max-w-7xl px-4 py-6 md:px-8 md:py-10">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Admin Float Requests
-          </h1>
-          <p className="text-sm text-[rgb(var(--app-text-muted))]">
-            Approve/Reject agent topup/return requests.
-          </p>
-        </div>
+      <div className="mx-auto max-w-7xl p-4 md:p-8">
+        {/* ────────── header ────────── */}
+        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-[#21D3B3]">
+              Agent Float
+            </p>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
-          {/* Filters */}
-          <div className="lg:col-span-4">
-            <Card className="rounded-2xl border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface-2))]/70 backdrop-blur-md">
-              <CardHeader>
-                <CardTitle className="text-base text-[rgb(var(--app-text))]">
-                  Filters
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/40 p-4 space-y-3">
-                  <div>
-                    <p className="text-xs text-[rgb(var(--app-text-muted))]">Status</p>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value as any)}
-                      className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="approved">Approved</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
-                  </div>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+              Float Requests
+            </h1>
 
-                  <div>
-                    <p className="text-xs text-[rgb(var(--app-text-muted))]">Type</p>
-                    <select
-                      value={type}
-                      onChange={(e) => setType(e.target.value as any)}
-                      className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
-                    >
-                      <option value="">All</option>
-                      <option value="topup">Topup</option>
-                      <option value="return">Return</option>
-                    </select>
-                  </div>
-
-                  <Button
-                    variant="secondary"
-                    className="w-full rounded-2xl"
-                    onClick={() => refetch()}
-                  >
-                    Refresh
-                  </Button>
-
-                  <div className="text-xs text-[rgb(var(--app-text-muted))]">
-                    Showing: <span className="text-[rgb(var(--app-text-soft))]">{count}</span>{" "}
-                    requests
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <p className="mt-1 text-sm text-[rgb(var(--app-text-muted))]">
+              Binance Pay / Crypto USDT request preview, approve and reject.
+            </p>
           </div>
 
-          {/* List */}
-          <div className="lg:col-span-8">
-            <Card className="rounded-2xl border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface-2))]/70 backdrop-blur-md">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-base text-[rgb(var(--app-text))]">
-                  Requests
-                </CardTitle>
-                <Button
-                  variant="secondary"
-                  className="rounded-2xl"
-                  onClick={() => refetch()}
-                  disabled={busy}
-                >
-                  Refresh
-                </Button>
-              </CardHeader>
-
-              <CardContent>
-                {isLoading ? (
-                  <div className="text-sm text-[rgb(var(--app-text-muted))]">Loading...</div>
-                ) : list.length === 0 ? (
-                  <div className="text-sm text-[rgb(var(--app-text-muted))]">No requests</div>
-                ) : (
-                  <div className="space-y-3">
-                    {list.map((r: any) => (
-                      <div
-                        key={r._id}
-                        className="rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/40 p-4"
-                      >
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-[rgb(var(--app-text))]">
-                              {String(r.type || "").toUpperCase()} • {r.amount}
-                            </p>
-                            <p className="mt-1 text-xs text-[rgb(var(--app-text-muted))]">
-                              Status:{" "}
-                              <span className="text-[rgb(var(--app-text-soft))]">{r.status}</span>{" "}
-                              • txnId:{" "}
-                              <span className="text-[rgb(var(--app-text-soft))]">{r.txnId}</span>
-                            </p>
-                            <p className="mt-1 text-xs text-[rgb(var(--app-text-muted))]">
-                              Agent:{" "}
-                              <span className="text-[rgb(var(--app-text-soft))]">{r.agentId}</span>
-                            </p>
-                            {r.agentNote ? (
-                              <p className="mt-1 text-xs text-[rgb(var(--app-text-muted))]">
-                                Agent note: {r.agentNote}
-                              </p>
-                            ) : null}
-                          </div>
-
-                          {status === "pending" ? (
-                            <div className="flex gap-2">
-                              <Button
-                                className="rounded-2xl"
-                                onClick={() => handleApprove(r._id)}
-                                disabled={busy}
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                className="rounded-2xl"
-                                onClick={() => handleReject(r._id)}
-                                disabled={busy}
-                              >
-                                Reject
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="text-xs text-[rgb(var(--app-text-muted))]">
-                              {r.updatedAt
-                                ? new Date(r.updatedAt).toLocaleString()
-                                : ""}
-                            </div>
-                          )}
-                        </div>
-
-                        <Separator className="my-3 bg-[rgb(var(--app-surface-3))]/80" />
-
-                        <div className="text-xs text-[rgb(var(--app-text-muted))]">
-                          Admin Note:{" "}
-                          <span className="text-[rgb(var(--app-text-soft))]">
-                            {r.adminNote || "-"}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <button
+            onClick={() => refetch()}
+            className="rounded-xl border border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface-2))]/70 px-4 py-2 text-sm text-[rgb(var(--app-text-soft))] hover:bg-[rgb(var(--app-surface-3))]/80"
+          >
+            Refresh
+          </button>
         </div>
+
+        {/* ────────── summary cards ────────── */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Card>
+            <div className="flex items-center gap-3">
+              <span className="text-[rgb(var(--app-text-muted))]">
+                Requests
+              </span>
+
+              <span className="ml-auto text-lg font-semibold">
+                {summary.count}
+              </span>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex items-center gap-3">
+              <span className="text-[rgb(var(--app-text-muted))]">
+                USDT Amount
+              </span>
+
+              <span className="ml-auto text-lg font-semibold">
+                {fmtNum(summary.usdt, " USDT")}
+              </span>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex items-center gap-3">
+              <span className="text-[rgb(var(--app-text-muted))]">
+                Float Amount
+              </span>
+
+              <span className="ml-auto text-lg font-semibold text-emerald-400">
+                {fmtNum(summary.float, " 💎")}
+              </span>
+            </div>
+          </Card>
+        </div>
+
+        {/* ────────── filters ────────── */}
+        <Card className="mt-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <Tabs
+              tabs={tabs}
+              active={status}
+              onChange={(k) => setStatus(k as typeof status)}
+            />
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:w-[420px]">
+              <select
+                value={type}
+                onChange={(e) =>
+                  setType(e.target.value as "" | "topup" | "return")
+                }
+                className="rounded-xl border border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface-2))]/70 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
+              >
+                <option value="">All Type</option>
+                <option value="topup">Topup</option>
+                <option value="return">Return</option>
+              </select>
+
+              <select
+                value={channel}
+                onChange={(e) =>
+                  setChannel(
+                    e.target.value as "" | "manual" | "binance" | "blockbee",
+                  )
+                }
+                className="rounded-xl border border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface-2))]/70 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
+              >
+                <option value="">All Method</option>
+                <option value="binance">Binance Pay</option>
+                <option value="blockbee">Crypto USDT</option>
+                <option value="manual">Manual</option>
+              </select>
+            </div>
+          </div>
+        </Card>
+
+        {/* ────────── request table ────────── */}
+        <Card className="mt-5 overflow-hidden p-0">
+          {isLoading ? (
+            <div className="p-6 text-sm text-[rgb(var(--app-text-muted))]">
+              Loading float requests...
+            </div>
+          ) : (
+            <AdminFloatRequestsTable
+              rows={rows}
+              pendingMode={status === "pending"}
+              onPreview={setSelected}
+              onDone={refetch}
+            />
+          )}
+        </Card>
+
+        {/* ────────── preview drawer ────────── */}
+        <AdminFloatRequestDetails
+          open={!!selected}
+          request={selected}
+          onClose={() => setSelected(null)}
+        />
       </div>
     </main>
   );

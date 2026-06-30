@@ -54,6 +54,7 @@ export const NAV_ITEMS: NavItem[] = [
 
     children: [
       { label: "All Deposits", href: "/deposits/all" },
+      { label: "Agent Float Requests", href: "/float-requests" },
       {
         label: "Manual Deposits",
         href: "/deposits/manual",
