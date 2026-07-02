@@ -2,14 +2,60 @@ import { apiSlice } from "../api/apiSlice";
 
 /* ─────────────────────────────────────────────────────────────
  * Admin Settlement API
- * - Float requests list/approve/reject
+ * - Agent preview before commission settlement
  * - Commission settlement
- * - CompanyDue settlement
+ * - Old float/company due endpoints kept for existing imports
  * ──────────────────────────────────────────────────────────── */
 
 export const adminSettlementApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    /* ────────── Float Requests ────────── */
+    /* ────────── Agent List Dropdown ────────── */
+    adminGetSettlementAgents: builder.query<any, void>({
+      query: () => ({
+        url: `/agents`,
+        method: "GET",
+      }),
+      providesTags: ["Admin"],
+    }),
+
+    /* ────────── Agent Preview ────────── */
+    adminGetSettlementAgentPreview: builder.query<any, { agentId: string }>({
+      query: ({ agentId }) => ({
+        url: `/agents/${encodeURIComponent(agentId)}`,
+        method: "GET",
+      }),
+      providesTags: ["Admin"],
+    }),
+
+    /* ────────── Search Agents ────────── */
+    adminSearchAgents: builder.query<any, { q: string }>({
+      query: ({ q }) => ({
+        url: `/admin/agents/search?q=${encodeURIComponent(q)}`,
+        method: "GET",
+      }),
+      providesTags: ["Admin"],
+    }),
+
+    /* ────────── Commission Settlement ────────── */
+    adminSettleAgentCommission: builder.mutation<
+      any,
+      {
+        agentId: string;
+        amount: number;
+        payoutMethod: "cash" | "balance";
+        txnId?: string;
+        note?: string;
+      }
+    >({
+      query: ({ agentId, ...body }) => ({
+        url: `/admin/agents/${agentId}/settle-commission`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Admin"],
+    }),
+
+    /* ────────── Float Requests (old support) ────────── */
     adminGetFloatRequests: builder.query<
       any,
       { status?: string; type?: string }
@@ -50,32 +96,14 @@ export const adminSettlementApi = apiSlice.injectEndpoints({
       invalidatesTags: ["FloatRequests"],
     }),
 
-    /* ────────── Commission Settlement ────────── */
-    adminSettleAgentCommission: builder.mutation<
-      any,
-      {
-        agentId: string;
-        amount: number;
-        payoutMethod: "cash" | "balance";
-        txnId: string;
-        note?: string;
-      }
-    >({
-      query: ({ agentId, ...body }) => ({
-        url: `/admin/agents/${agentId}/settle-commission`,
-        method: "POST",
-        body,
-      }),
-    }),
-
-    /* ────────── CompanyDue Settlement ────────── */
+    /* ────────── CompanyDue Settlement (old support) ────────── */
     adminSettleCompanyDue: builder.mutation<
       any,
       {
         agentId: string;
         amount: number;
         action: "receive_from_agent" | "pay_to_agent";
-        txnId: string;
+        txnId?: string;
         note?: string;
       }
     >({
@@ -84,16 +112,17 @@ export const adminSettlementApi = apiSlice.injectEndpoints({
         method: "POST",
         body,
       }),
+      invalidatesTags: ["Admin"],
     }),
 
-    /* ────────── Manual Float ────────── */
+    /* ────────── Manual Float (old support) ────────── */
     adminManualFloat: builder.mutation<
       any,
       {
         agentId: string;
         type: "topup" | "return";
         amount: number;
-        txnId: string;
+        txnId?: string;
         note?: string;
       }
     >({
@@ -102,26 +131,21 @@ export const adminSettlementApi = apiSlice.injectEndpoints({
         method: "POST",
         body,
       }),
-    }),
-
-    /* ────────── Search Agents ────────── */
-    adminSearchAgents: builder.query<any, { q: string }>({
-      query: ({ q }) => ({
-        url: `/admin/agents/search?q=${encodeURIComponent(q)}`,
-        method: "GET",
-      }),
+      invalidatesTags: ["Admin"],
     }),
   }),
 });
 
 export const {
+  useAdminGetSettlementAgentsQuery,
+  useLazyAdminGetSettlementAgentPreviewQuery,
+  useLazyAdminSearchAgentsQuery,
+  useAdminSettleAgentCommissionMutation,
+
   useAdminGetFloatRequestsQuery,
   useAdminApproveFloatRequestMutation,
   useAdminRejectFloatRequestMutation,
-  useAdminSettleAgentCommissionMutation,
   useAdminSettleCompanyDueMutation,
-
   useAdminManualFloatMutation,
-
   useAdminSearchAgentsQuery,
 } = adminSettlementApi;

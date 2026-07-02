@@ -6,6 +6,8 @@
 
 import {
   ISystemMonthlyReport,
+  useDeleteMonthlyReportMutation,
+  useGenerateMonthlyReportMutation,
   useGetMonthlyReportsQuery,
 } from "@/redux/features/admin/adminApi";
 import {
@@ -15,11 +17,14 @@ import {
   Coins,
   Gift,
   HandCoins,
+  PlusCircle,
   RefreshCw,
+  Trash2,
   Trophy,
   Wallet,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
+import toast from "react-hot-toast";
 
 const money = (value?: number) => {
   const n = Number(value || 0);
@@ -53,31 +58,64 @@ function statusClass(status?: string) {
 function PageHeader({
   onRefresh,
   loading,
+  monthKey,
+  setMonthKey,
+  onGenerate,
+  generating,
 }: {
   onRefresh: () => void;
   loading: boolean;
+  monthKey: string;
+  setMonthKey: (value: string) => void;
+  onGenerate: () => void;
+  generating: boolean;
 }) {
   return (
-    <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-[rgb(var(--app-text))]">
           <CalendarDays className="h-6 w-6 text-cyan-300" />
           Monthly Reports
         </h1>
-        <p className="mt-1 text-sm text-[rgb(var(--app-text-muted))]">
-          প্রতি মাসের ১ তারিখে আগের মাসের income, cost এবং profit snapshot এখানে
-          দেখা যাবে।
+        <p className="mt-1 max-w-2xl text-sm text-[rgb(var(--app-text-muted))]">
+          Monthly income, cost, profit snapshot এবং agent float/topup summary
+          এখানে দেখা যাবে।
         </p>
       </div>
 
-      <button
-        onClick={onRefresh}
-        disabled={loading}
-        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/5 bg-[rgb(var(--app-surface-2))]/70 px-4 py-2 text-xs font-semibold text-[rgb(var(--app-text-soft))] transition-all hover:bg-[rgb(var(--app-surface-3))]/80 disabled:opacity-40"
-      >
-        <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-        Refresh
-      </button>
+      <div className="flex flex-col gap-3 rounded-2xl border border-white/5 bg-[rgb(var(--app-surface))]/80 p-3 md:flex-row md:items-center">
+        <div>
+          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--app-text-muted))]">
+            Report Month
+          </label>
+          <input
+            type="month"
+            value={monthKey}
+            onChange={(e) => setMonthKey(e.target.value)}
+            className="h-10 rounded-xl border border-white/10 bg-[rgb(var(--app-surface-2))] px-3 text-sm font-semibold text-[rgb(var(--app-text))] outline-none ring-cyan-400/20 focus:ring-4"
+          />
+        </div>
+
+        <button
+          onClick={onGenerate}
+          disabled={generating}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-cyan-400 px-4 text-xs font-black text-slate-950 transition-all hover:bg-cyan-300 disabled:opacity-40"
+        >
+          <PlusCircle className="h-3.5 w-3.5" />
+          {generating ? "Generating..." : "Generate Report"}
+        </button>
+
+        <button
+          onClick={onRefresh}
+          disabled={loading}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/5 bg-[rgb(var(--app-surface-2))]/70 px-4 text-xs font-semibold text-[rgb(var(--app-text-soft))] transition-all hover:bg-[rgb(var(--app-surface-3))]/80 disabled:opacity-40"
+        >
+          <RefreshCw
+            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+          />
+          Refresh
+        </button>
+      </div>
     </div>
   );
 }
@@ -318,6 +356,94 @@ function ReportDetails({ report }: { report?: ISystemMonthlyReport }) {
           </div>
         </div>
       </div>
+
+      <div className="rounded-2xl border border-white/5 bg-[rgb(var(--app-surface))] p-5">
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-cyan-300">
+          <Wallet className="h-4 w-4" /> Agent Float / Topup Summary
+        </h3>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <BreakdownItem
+            icon={<PlusCircle className="h-4 w-4" />}
+            label="Total Agent Topup"
+            value={report.agentFloat?.totalTopup || 0}
+            type="income"
+          />
+          <BreakdownItem
+            icon={<Wallet className="h-4 w-4" />}
+            label="Manual Topup"
+            value={report.agentFloat?.manualTopup || 0}
+            type="income"
+          />
+          <BreakdownItem
+            icon={<Wallet className="h-4 w-4" />}
+            label="Float Request Topup"
+            value={report.agentFloat?.requestTopup || 0}
+            type="income"
+          />
+          <BreakdownItem
+            icon={<RefreshCw className="h-4 w-4" />}
+            label="Total Float Return"
+            value={report.agentFloat?.totalReturn || 0}
+            type="cost"
+          />
+          <BreakdownItem
+            icon={<Wallet className="h-4 w-4" />}
+            label="Net Float Movement"
+            value={report.agentFloat?.netMovement || 0}
+            type="income"
+          />
+          <BreakdownItem
+            icon={<CalendarDays className="h-4 w-4" />}
+            label="Pending Float Requests"
+            value={report.agentFloat?.pendingRequestAmount || 0}
+            type="cost"
+          />
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
+          <div className="rounded-xl border border-white/5 bg-[rgb(var(--app-surface-2))]/60 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--app-text-muted))]">
+              Topup Count
+            </p>
+            <p className="mt-1 text-lg font-black text-[rgb(var(--app-text))]">
+              {report.agentFloat?.topupCount || 0}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/5 bg-[rgb(var(--app-surface-2))]/60 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--app-text-muted))]">
+              Return Count
+            </p>
+            <p className="mt-1 text-lg font-black text-[rgb(var(--app-text))]">
+              {report.agentFloat?.returnCount || 0}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/5 bg-[rgb(var(--app-surface-2))]/60 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--app-text-muted))]">
+              Approved Requests
+            </p>
+            <p className="mt-1 text-lg font-black text-emerald-300">
+              {report.agentFloat?.approvedRequestCount || 0}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/5 bg-[rgb(var(--app-surface-2))]/60 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--app-text-muted))]">
+              Pending Requests
+            </p>
+            <p className="mt-1 text-lg font-black text-yellow-300">
+              {report.agentFloat?.pendingRequestCount || 0}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/5 bg-[rgb(var(--app-surface-2))]/60 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-[rgb(var(--app-text-muted))]">
+              Rejected Requests
+            </p>
+            <p className="mt-1 text-lg font-black text-rose-300">
+              {report.agentFloat?.rejectedRequestCount || 0}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -326,10 +452,14 @@ function ReportsTable({
   reports,
   selectedId,
   onSelect,
+  onDelete,
+  deleting,
 }: {
   reports: ISystemMonthlyReport[];
   selectedId?: string;
   onSelect: (report: ISystemMonthlyReport) => void;
+  onDelete: (report: ISystemMonthlyReport) => void;
+  deleting: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-white/5 bg-[rgb(var(--app-surface))] p-4">
@@ -343,12 +473,12 @@ function ReportsTable({
       </div>
 
       <div className="overflow-hidden rounded-xl border border-white/5">
-        <div className="hidden grid-cols-[1.2fr_1fr_1fr_1fr_42px] bg-[rgb(var(--app-surface-2))] px-4 py-3 text-xs font-bold uppercase tracking-wider text-[rgb(var(--app-text-muted))] md:grid">
+        <div className="hidden grid-cols-[1.2fr_1fr_1fr_1fr_90px] bg-[rgb(var(--app-surface-2))] px-4 py-3 text-xs font-bold uppercase tracking-wider text-[rgb(var(--app-text-muted))] md:grid">
           <span>Month</span>
           <span>Income</span>
           <span>Cost</span>
           <span>Net Profit</span>
-          <span />
+          <span>Action</span>
         </div>
 
         <div className="divide-y divide-white/5">
@@ -359,7 +489,7 @@ function ReportsTable({
                 key={report._id}
                 type="button"
                 onClick={() => onSelect(report)}
-                className={`grid w-full grid-cols-1 gap-2 px-4 py-4 text-left transition hover:bg-[rgb(var(--app-surface-2))]/70 md:grid-cols-[1.2fr_1fr_1fr_1fr_42px] md:items-center ${active ? "bg-cyan-400/10" : "bg-transparent"}`}
+                className={`grid w-full grid-cols-1 gap-2 px-4 py-4 text-left transition hover:bg-[rgb(var(--app-surface-2))]/70 md:grid-cols-[1.2fr_1fr_1fr_1fr_90px] md:items-center ${active ? "bg-cyan-400/10" : "bg-transparent"}`}
               >
                 <div>
                   <div className="font-bold text-[rgb(var(--app-text))]">
@@ -384,8 +514,28 @@ function ReportsTable({
                     {report.profit?.status?.replace("_", " ")}
                   </span>
                 </div>
-                <div className="hidden justify-end md:flex">
-                  <ChevronRight className="h-4 w-4 text-[rgb(var(--app-text-muted))]" />
+                <div className="flex items-center justify-end gap-2">
+                  <span className="hidden md:inline-flex">
+                    <ChevronRight className="h-4 w-4 text-[rgb(var(--app-text-muted))]" />
+                  </span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(report);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.stopPropagation();
+                        onDelete(report);
+                      }
+                    }}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-400/20 bg-rose-400/10 text-rose-300 transition hover:bg-rose-400/20"
+                    aria-disabled={deleting}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </span>
                 </div>
               </button>
             );
@@ -414,8 +564,16 @@ export default function MonthlyReportsPage() {
     page: 1,
     limit: 24,
   });
+  const [generateMonthlyReport, { isLoading: isGenerating }] =
+    useGenerateMonthlyReportMutation();
+  const [deleteMonthlyReport, { isLoading: isDeleting }] =
+    useDeleteMonthlyReportMutation();
   const reports = useMemo(() => data?.reports || [], [data?.reports]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [monthKey, setMonthKey] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
 
   const selectedReport = useMemo(() => {
     if (!reports.length) return undefined;
@@ -424,9 +582,39 @@ export default function MonthlyReportsPage() {
 
   const loading = isLoading || isFetching;
 
+  const handleGenerate = async () => {
+    try {
+      const result = await generateMonthlyReport({ monthKey }).unwrap();
+      setSelectedId(result.report?._id || null);
+      toast.success("Monthly report generated successfully");
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to generate monthly report");
+    }
+  };
+
+  const handleDelete = async (report: ISystemMonthlyReport) => {
+    const ok = window.confirm(`Delete ${monthText(report.monthKey)} report?`);
+    if (!ok) return;
+
+    try {
+      await deleteMonthlyReport(report.monthKey).unwrap();
+      setSelectedId(null);
+      toast.success("Monthly report deleted successfully");
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to delete monthly report");
+    }
+  };
+
   return (
     <main className="min-h-screen bg-transparent text-[rgb(var(--app-text))]">
-      <PageHeader onRefresh={refetch} loading={loading} />
+      <PageHeader
+        onRefresh={refetch}
+        loading={loading}
+        monthKey={monthKey}
+        setMonthKey={setMonthKey}
+        onGenerate={handleGenerate}
+        generating={isGenerating}
+      />
 
       {loading ? (
         <LoadingState />
@@ -437,6 +625,8 @@ export default function MonthlyReportsPage() {
             reports={reports}
             selectedId={selectedReport?._id}
             onSelect={(report) => setSelectedId(report._id)}
+            onDelete={handleDelete}
+            deleting={isDeleting}
           />
         </div>
       ) : (

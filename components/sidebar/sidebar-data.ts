@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Download,
   Grid2x2,
+  Handshake,
   LifeBuoy,
   Megaphone,
   MessageSquare,
@@ -111,6 +112,13 @@ export const NAV_ITEMS: NavItem[] = [
     icon: MessageSquare,
     href: "/agent-notices",
   },
+  {
+    key: "agent-settlement",
+    label: "Agent Settlement",
+    icon: Handshake,
+    href: "/settlement",
+  },
+
   {
     key: "maintenance",
     label: "Maintenance",

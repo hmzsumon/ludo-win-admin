@@ -167,6 +167,24 @@ export interface IMonthlyReportProfit {
   status: "profit" | "loss" | "break_even" | string;
 }
 
+export interface IMonthlyReportAgentFloat {
+  manualTopup: number;
+  requestTopup: number;
+  totalTopup: number;
+  manualReturn: number;
+  requestReturn: number;
+  totalReturn: number;
+  netMovement: number;
+  pendingRequestAmount: number;
+  approvedRequestAmount: number;
+  rejectedRequestAmount: number;
+  topupCount: number;
+  returnCount: number;
+  pendingRequestCount: number;
+  approvedRequestCount: number;
+  rejectedRequestCount: number;
+}
+
 export interface ISystemMonthlyReport {
   _id: string;
   monthKey: string;
@@ -193,6 +211,7 @@ export interface ISystemMonthlyReport {
     totalCost: number;
   };
   profit: IMonthlyReportProfit;
+  agentFloat?: IMonthlyReportAgentFloat;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -355,6 +374,31 @@ export const adminApi = apiSlice.injectEndpoints({
       providesTags: ["MonthlyReports"],
     }),
 
+    /* ──────────  Generate Monthly Report  ────────── */
+    generateMonthlyReport: builder.mutation<
+      { success: boolean; message: string; report: ISystemMonthlyReport },
+      { monthKey?: string } | void
+    >({
+      query: (body) => ({
+        url: "/admin/monthly-reports/generate",
+        method: "POST",
+        body: body || {},
+      }),
+      invalidatesTags: ["MonthlyReports", "Dashboard"],
+    }),
+
+    /* ──────────  Delete Monthly Report  ────────── */
+    deleteMonthlyReport: builder.mutation<
+      { success: boolean; message: string },
+      string
+    >({
+      query: (monthKey) => ({
+        url: `/admin/monthly-reports/${monthKey}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["MonthlyReports"],
+    }),
+
     /* ──────────  Get Maintenance Status  ────────── */
     getMaintenanceStatus: builder.query<
       { success: boolean; maintenance: IMaintenanceStatus },
@@ -386,6 +430,8 @@ export const {
   useGetAdminDashboardQuery,
   useGetTotalOverviewQuery,
   useGetMonthlyReportsQuery,
+  useGenerateMonthlyReportMutation,
+  useDeleteMonthlyReportMutation,
   useGetMaintenanceStatusQuery,
   useUpdateMaintenanceStatusMutation,
 } = adminApi;

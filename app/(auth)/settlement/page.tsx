@@ -2,10 +2,9 @@
 
 /* ─────────────────────────────────────────────────────────────
  * Admin Settlement Center
- * - Float Requests (topup/return) approve/reject
- * - Commission settlement (cash/balance)
- * - CompanyDue cash settlement (receive/pay)
- * - txnId required for idempotency
+ * - Agent ID দিয়ে আগে preview দেখা হবে
+ * - Preview confirm হওয়ার পরে commission settle করা যাবে
+ * - Float Request + Company Due section এই page থেকে remove করা হয়েছে
  * ──────────────────────────────────────────────────────────── */
 
 import { useMemo, useState } from "react";
@@ -14,294 +13,343 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-
-/* NOTE:
-   নিচের hooks গুলো আপনাকে RTK query তে add করতে হবে (C section এ দেয়া আছে)
-*/
 import {
-  useAdminApproveFloatRequestMutation,
-  useAdminGetFloatRequestsQuery,
-  useAdminRejectFloatRequestMutation,
+  useAdminGetSettlementAgentsQuery,
   useAdminSettleAgentCommissionMutation,
-  useAdminSettleCompanyDueMutation,
+  useLazyAdminGetSettlementAgentPreviewQuery,
+  useLazyAdminSearchAgentsQuery,
 } from "@/redux/features/admin/adminSettlementApi";
 
-export default function AdminSettlementCenterPage() {
-  /* ────────── Float Requests ────────── */
-  const {
-    data: frRes,
-    isLoading: frLoading,
-    refetch,
-  } = useAdminGetFloatRequestsQuery({
-    status: "pending",
+const money = (value: any) =>
+  Number(value || 0).toLocaleString("en-BD", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   });
 
-  const floatRequests = frRes?.data || [];
-
-  const [approveFloatRequest] = useAdminApproveFloatRequestMutation();
-  const [rejectFloatRequest] = useAdminRejectFloatRequestMutation();
-
-  /* ────────── Commission Settlement Form ────────── */
-  const [agentId, setAgentId] = useState("");
+export default function AdminSettlementCenterPage() {
+  /* ────────── Commission settlement form ────────── */
+  const [agentIdInput, setAgentIdInput] = useState("");
+  const [resolvedAgentId, setResolvedAgentId] = useState("");
   const [commissionAmount, setCommissionAmount] = useState("");
   const [commissionPayout, setCommissionPayout] = useState<"cash" | "balance">(
-    "cash",
+    "balance",
   );
   const [commissionTxnId, setCommissionTxnId] = useState("");
+  const [adminNote, setAdminNote] = useState("");
+
+  const {
+    data: agentsRes,
+    isLoading: agentsLoading,
+    isFetching: agentsFetching,
+  } = useAdminGetSettlementAgentsQuery();
+
+  const [loadAgentPreview, { data: previewRes, isFetching: previewLoading }] =
+    useLazyAdminGetSettlementAgentPreviewQuery();
+  const [searchAgents, { isFetching: searchingAgent }] =
+    useLazyAdminSearchAgentsQuery();
 
   const [settleCommission, { isLoading: settlingCommission }] =
     useAdminSettleAgentCommissionMutation();
 
-  /* ────────── CompanyDue Settlement Form ────────── */
-  const [dueAgentId, setDueAgentId] = useState("");
-  const [dueAmount, setDueAmount] = useState("");
-  const [dueAction, setDueAction] = useState<
-    "receive_from_agent" | "pay_to_agent"
-  >("receive_from_agent");
-  const [dueTxnId, setDueTxnId] = useState("");
+  const agents = useMemo(() => agentsRes?.data || [], [agentsRes]);
+  const preview = resolvedAgentId ? previewRes?.data || null : null;
+  const agent = preview?.agent || null;
+  const statusDoc = preview?.statusDoc || null;
+  const walletDoc = preview?.walletDoc || null;
 
-  const [settleCompanyDue, { isLoading: settlingDue }] =
-    useAdminSettleCompanyDueMutation();
+  const pendingTotal = Number(walletDoc?.pendingTotal || 0);
+  const settleAmount = Number(commissionAmount || 0);
 
-  const pendingCount = useMemo(() => floatRequests.length, [floatRequests]);
+  /* ────────── Pending bucket normalize ──────────
+   * কোনো পুরোনো data inconsistency থাকলে pendingTotal <= 0 হলে
+   * pendingDeposit/pendingWithdraw UI তেও 0 দেখানো হবে।
+   * ───────────────────────────────────────────── */
+  const showPendingDeposit =
+    pendingTotal > 0 ? Number(walletDoc?.pendingDeposit || 0) : 0;
+  const showPendingWithdraw =
+    pendingTotal > 0 ? Number(walletDoc?.pendingWithdraw || 0) : 0;
 
-  /* ────────── Float approve/reject handlers ────────── */
-  const handleApprove = async (id: string) => {
+  const previewCards = useMemo(
+    () => [
+      {
+        label: "Pending Total",
+        value: money(pendingTotal),
+      },
+      {
+        label: "Pending Deposit",
+        value: money(showPendingDeposit),
+      },
+      {
+        label: "Pending Withdraw",
+        value: money(showPendingWithdraw),
+      },
+      {
+        label: "Rolling Balance",
+        value: money(statusDoc?.rollingBalance),
+      },
+    ],
+    [pendingTotal, showPendingDeposit, showPendingWithdraw, statusDoc],
+  );
+
+  /* ────────── Dropdown থেকে agent select করলে auto preview ────────── */
+  const handleSelectAgent = async (id: string) => {
+    setAgentIdInput(id);
+    setResolvedAgentId("");
+    setCommissionAmount("");
+    setCommissionTxnId("");
+    setAdminNote("");
+    setCommissionPayout("balance");
+
+    if (!id) return;
+
     try {
-      await approveFloatRequest({ id, adminNote: "" }).unwrap();
-      toast.success("Approved");
-      refetch();
+      const res = await loadAgentPreview({ agentId: id }).unwrap();
+      setResolvedAgentId(res?.data?.agent?._id || id);
+      toast.success("Agent preview loaded");
     } catch (e: any) {
-      toast.error(e?.data?.message || "Approve failed");
+      setResolvedAgentId("");
+      toast.error(e?.data?.message || "Agent preview failed");
     }
   };
 
-  const handleReject = async (id: string) => {
+  /* ────────── Agent preview handler ────────── */
+  const handlePreviewAgent = async () => {
+    const q = agentIdInput.trim();
+    if (!q) return toast.error("Agent ID লিখুন");
+
     try {
-      await rejectFloatRequest({ id, adminNote: "" }).unwrap();
-      toast.success("Rejected");
-      refetch();
+      /*
+       * প্রথমে direct MongoDB _id ধরে preview করা হচ্ছে।
+       * যদি admin customerId/name দেয়, তাহলে search করে exact/first agent নিয়ে preview করা হবে।
+       */
+      try {
+        const direct = await loadAgentPreview({ agentId: q }).unwrap();
+        const directId = direct?.data?.agent?._id;
+        setResolvedAgentId(directId || q);
+        toast.success("Agent preview loaded");
+        return;
+      } catch {
+        const search = await searchAgents({ q }).unwrap();
+        const found =
+          search?.data?.find((a: any) => String(a?.customerId || "") === q) ||
+          search?.data?.[0];
+
+        if (!found?._id) {
+          setResolvedAgentId("");
+          return toast.error("এই Agent ID দিয়ে agent পাওয়া যায়নি");
+        }
+
+        const next = await loadAgentPreview({ agentId: found._id }).unwrap();
+        setResolvedAgentId(next?.data?.agent?._id || found._id);
+        toast.success("Agent preview loaded");
+      }
     } catch (e: any) {
-      toast.error(e?.data?.message || "Reject failed");
+      setResolvedAgentId("");
+      toast.error(e?.data?.message || "Agent preview failed");
     }
   };
 
   /* ────────── Commission settlement submit ────────── */
   const submitCommission = async () => {
-    if (!agentId) return toast.error("AgentId required");
-    const amt = Number(commissionAmount || 0);
-    if (!amt || amt <= 0) return toast.error("Invalid amount");
-    if (!commissionTxnId) return toast.error("txnId required");
+    if (!resolvedAgentId || !agent) {
+      return toast.error("আগে Agent Preview দেখুন");
+    }
+
+    if (!settleAmount || settleAmount <= 0) {
+      return toast.error("Invalid amount");
+    }
+
+    if (settleAmount > pendingTotal) {
+      return toast.error("Amount pending commission থেকে বেশি হতে পারবে না");
+    }
+
+    if (commissionPayout === "cash" && !commissionTxnId.trim()) {
+      return toast.error("Cash Paid হলে txnId required");
+    }
+
+    if (commissionPayout === "cash" && !adminNote.trim()) {
+      return toast.error("Cash Paid হলে Admin Note required");
+    }
 
     try {
       await settleCommission({
-        agentId,
-        amount: amt,
+        agentId: resolvedAgentId,
+        amount: settleAmount,
         payoutMethod: commissionPayout,
-        txnId: commissionTxnId,
-        note: "",
+        txnId: commissionPayout === "cash" ? commissionTxnId.trim() : undefined,
+        note: commissionPayout === "cash" ? adminNote.trim() : undefined,
       }).unwrap();
 
-      toast.success("Commission settled");
+      toast.success(
+        commissionPayout === "balance"
+          ? "Commission added to rolling balance"
+          : "Commission cash paid successfully",
+      );
       setCommissionAmount("");
       setCommissionTxnId("");
+      setAdminNote("");
+      await loadAgentPreview({ agentId: resolvedAgentId }).unwrap();
     } catch (e: any) {
       toast.error(e?.data?.message || "Settlement failed");
     }
   };
 
-  /* ────────── CompanyDue settlement submit ────────── */
-  const submitDue = async () => {
-    if (!dueAgentId) return toast.error("AgentId required");
-    const amt = Number(dueAmount || 0);
-    if (!amt || amt <= 0) return toast.error("Invalid amount");
-    if (!dueTxnId) return toast.error("txnId required");
-
-    try {
-      await settleCompanyDue({
-        agentId: dueAgentId,
-        amount: amt,
-        action: dueAction,
-        txnId: dueTxnId,
-        note: "",
-      }).unwrap();
-
-      toast.success("CompanyDue settled");
-      setDueAmount("");
-      setDueTxnId("");
-    } catch (e: any) {
-      toast.error(e?.data?.message || "Settlement failed");
-    }
-  };
+  const canSettle = !!agent && !!resolvedAgentId && pendingTotal > 0;
 
   return (
     <main className="min-h-screen bg-transparent text-[rgb(var(--app-text))]">
-      <div className="mx-auto w-full max-w-7xl px-4 py-6 md:px-8 md:py-10">
+      <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-10">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">
             Settlement Center
           </h1>
           <p className="text-sm text-[rgb(var(--app-text-muted))]">
-            Manage agent float requests, commission settlement, and company due
-            cash settlement.
+            Agent ID দিয়ে আগে agent preview দেখুন, pending commission check
+            করুন, তারপর settle করুন।
           </p>
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
-          {/* Left */}
           <div className="lg:col-span-7 space-y-4">
-            {/* Float requests */}
+            {/* ────────── Agent preview ────────── */}
             <Card className="rounded-2xl border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface-2))]/70 backdrop-blur-md">
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader>
                 <CardTitle className="text-base text-[rgb(var(--app-text))]">
-                  Float Requests (Pending){" "}
-                  <span className="text-xs text-[rgb(var(--app-text-muted))]">
-                    ({pendingCount})
-                  </span>
+                  Agent Preview
                 </CardTitle>
-
-                <Button
-                  variant="secondary"
-                  className="rounded-2xl"
-                  onClick={() => refetch()}
-                >
-                  Refresh
-                </Button>
               </CardHeader>
 
-              <CardContent>
-                {frLoading ? (
-                  <div className="text-sm text-[rgb(var(--app-text-muted))]">Loading...</div>
-                ) : floatRequests.length === 0 ? (
-                  <div className="text-sm text-[rgb(var(--app-text-muted))]">
-                    No pending requests
+              <CardContent className="space-y-4">
+                <div className="rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/40 p-4">
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    {/* ────────── Agent list dropdown ────────── */}
+                    <div>
+                      <p className="text-xs text-[rgb(var(--app-text-muted))]">
+                        Agent List থেকে select করুন
+                      </p>
+                      <select
+                        value={agent?._id || ""}
+                        onChange={(e) => handleSelectAgent(e.target.value)}
+                        className="mt-2 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-[#020617] px-3 py-2 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={
+                          agentsLoading || agentsFetching || previewLoading
+                        }
+                      >
+                        <option value="" className="bg-[#020617] text-white">
+                          {agentsLoading || agentsFetching
+                            ? "Loading agents..."
+                            : "-- Agent Select করুন --"}
+                        </option>
+                        {agents.map((item: any) => (
+                          <option
+                            key={item?._id}
+                            value={item?._id}
+                            className="bg-[#020617] text-white"
+                          >
+                            {item?.name || "Unknown"} • ID:{" "}
+                            {item?.customerId || "N/A"} •{" "}
+                            {item?.email || item?.phone || "No contact"}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-[11px] text-[rgb(var(--app-text-muted))]">
+                        Dropdown থেকে select করলেই auto preview দেখাবে।
+                      </p>
+                    </div>
+
+                    {/* ────────── Manual ID search option ────────── */}
+                    <div>
+                      <p className="text-xs text-[rgb(var(--app-text-muted))]">
+                        অথবা Agent ID / Customer ID / Name দিয়ে খুঁজুন
+                      </p>
+                      <div className="mt-2 flex flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
+                        <input
+                          value={agentIdInput}
+                          onChange={(e) => {
+                            setAgentIdInput(e.target.value);
+                            setResolvedAgentId("");
+                          }}
+                          className="w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
+                          placeholder="agent _id / customerId / name"
+                        />
+                        <Button
+                          className="rounded-2xl whitespace-nowrap"
+                          onClick={handlePreviewAgent}
+                          disabled={previewLoading || searchingAgent}
+                        >
+                          {previewLoading || searchingAgent
+                            ? "Loading..."
+                            : "Preview"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {agent ? (
+                  <div className="space-y-4 rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/40 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <h2 className="text-lg font-semibold text-[rgb(var(--app-text))]">
+                          {agent?.name || "Unknown Agent"}
+                        </h2>
+                        <p className="mt-1 text-xs text-[rgb(var(--app-text-muted))]">
+                          Customer ID: {agent?.customerId || "N/A"} • Mongo ID:{" "}
+                          {agent?._id}
+                        </p>
+                        <p className="mt-1 text-xs text-[rgb(var(--app-text-muted))]">
+                          Phone: {agent?.phone || "N/A"} • Email:{" "}
+                          {agent?.email || "N/A"}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`w-fit rounded-full px-3 py-1 text-xs font-medium ${
+                          agent?.is_active
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : "bg-red-500/15 text-red-400"
+                        }`}
+                      >
+                        {agent?.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {previewCards.map((item) => (
+                        <div
+                          key={item.label}
+                          className="rounded-2xl border border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface-1))]/50 p-3"
+                        >
+                          <p className="text-xs text-[rgb(var(--app-text-muted))]">
+                            {item.label}
+                          </p>
+                          <p className="mt-1 text-lg font-semibold text-[rgb(var(--app-text))]">
+                            {item.value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {pendingTotal <= 0 ? (
+                      <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+                        এই agent-এর কোনো pending commission নেই। তাই এখন settle
+                        করার মতো amount নেই।
+                      </p>
+                    ) : null}
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {floatRequests.map((r: any) => (
-                      <div
-                        key={r._id}
-                        className="rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/40 p-4"
-                      >
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-[rgb(var(--app-text))]">
-                              {r.type?.toUpperCase()} — {r.amount}
-                            </p>
-                            <p className="mt-1 text-xs text-[rgb(var(--app-text-muted))]">
-                              Agent: {r.agentId} • txnId: {r.txnId}
-                            </p>
-                            {r.agentNote ? (
-                              <p className="mt-1 text-xs text-[rgb(var(--app-text-muted))]">
-                                Note: {r.agentNote}
-                              </p>
-                            ) : null}
-                          </div>
-
-                          <div className="flex gap-2">
-                            <Button
-                              className="rounded-2xl"
-                              onClick={() => handleApprove(r._id)}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              className="rounded-2xl"
-                              onClick={() => handleReject(r._id)}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="rounded-2xl border border-dashed border-[rgb(var(--app-border))] p-6 text-center text-sm text-[rgb(var(--app-text-muted))]">
+                    Agent list থেকে select করলে অথবা Agent ID দিয়ে preview করলে
+                    এখানে agent-এর wallet, pending commission এবং rolling
+                    balance দেখা যাবে।
                   </div>
                 )}
               </CardContent>
             </Card>
-
-            {/* Company due settlement */}
-            <Card className="rounded-2xl border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface-2))]/70 backdrop-blur-md">
-              <CardHeader>
-                <CardTitle className="text-base text-[rgb(var(--app-text))]">
-                  Company Due Cash Settlement
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent className="space-y-3">
-                <div className="rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/40 p-4">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <p className="text-xs text-[rgb(var(--app-text-muted))]">Agent ID</p>
-                      <input
-                        value={dueAgentId}
-                        onChange={(e) => setDueAgentId(e.target.value)}
-                        className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
-                        placeholder="agentId"
-                      />
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-[rgb(var(--app-text-muted))]">Amount</p>
-                      <input
-                        value={dueAmount}
-                        onChange={(e) => setDueAmount(e.target.value)}
-                        className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
-                        placeholder="e.g. 5000"
-                      />
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-[rgb(var(--app-text-muted))]">Action</p>
-                      <select
-                        value={dueAction}
-                        onChange={(e) => setDueAction(e.target.value as any)}
-                        className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
-                      >
-                        <option value="receive_from_agent">
-                          Receive cash from agent (agent owes company)
-                        </option>
-                        <option value="pay_to_agent">
-                          Pay cash to agent (company owes agent)
-                        </option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-[rgb(var(--app-text-muted))]">txnId</p>
-                      <input
-                        value={dueTxnId}
-                        onChange={(e) => setDueTxnId(e.target.value)}
-                        className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
-                        placeholder="unique id"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex gap-2">
-                    <Button
-                      className="rounded-2xl"
-                      onClick={submitDue}
-                      disabled={settlingDue}
-                    >
-                      {settlingDue ? "Processing..." : "Settle Cash"}
-                    </Button>
-                  </div>
-
-                  <p className="mt-3 text-xs text-[rgb(var(--app-text-muted))]">
-                    Rule: receive_from_agent only allowed if companyDueBalance
-                    &gt; 0, pay_to_agent only allowed if companyDueBalance &lt;
-                    0.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
-          {/* Right */}
           <div className="lg:col-span-5 space-y-4">
-            {/* Commission settlement */}
+            {/* ────────── Commission settlement ────────── */}
             <Card className="rounded-2xl border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface-2))]/70 backdrop-blur-md">
               <CardHeader>
                 <CardTitle className="text-base text-[rgb(var(--app-text))]">
@@ -311,83 +359,136 @@ export default function AdminSettlementCenterPage() {
 
               <CardContent className="space-y-3">
                 <div className="rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/40 p-4">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
-                      <p className="text-xs text-[rgb(var(--app-text-muted))]">Agent ID</p>
-                      <input
-                        value={agentId}
-                        onChange={(e) => setAgentId(e.target.value)}
-                        className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
-                        placeholder="agentId"
-                      />
-                    </div>
+                  <div className="mb-3 rounded-2xl border border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface-1))]/50 p-3 text-xs text-[rgb(var(--app-text-muted))]">
+                    Selected Agent:{" "}
+                    {agent
+                      ? `${agent.name} (${agent.customerId})`
+                      : "Preview করা হয়নি"}
+                  </div>
 
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
-                      <p className="text-xs text-[rgb(var(--app-text-muted))]">Amount</p>
+                      <p className="text-xs text-[rgb(var(--app-text-muted))]">
+                        Amount
+                      </p>
                       <input
                         value={commissionAmount}
                         onChange={(e) => setCommissionAmount(e.target.value)}
-                        className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
+                        className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none disabled:cursor-not-allowed disabled:opacity-60"
                         placeholder="e.g. 1200"
+                        disabled={!canSettle}
                       />
                     </div>
 
                     <div>
-                      <p className="text-xs text-[rgb(var(--app-text-muted))]">Payout Method</p>
+                      <p className="text-xs text-[rgb(var(--app-text-muted))]">
+                        Payout Method
+                      </p>
                       <select
                         value={commissionPayout}
                         onChange={(e) =>
-                          setCommissionPayout(e.target.value as any)
+                          setCommissionPayout(
+                            e.target.value as "cash" | "balance",
+                          )
                         }
-                        className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
+                        className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-[#020617] px-3 py-2 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={!canSettle}
                       >
-                        <option value="cash">Cash</option>
-                        <option value="balance">Add to Balance</option>
+                        <option
+                          value="balance"
+                          className="bg-[#020617] text-white"
+                        >
+                          Add to Rolling Balance
+                        </option>
+                        <option
+                          value="cash"
+                          className="bg-[#020617] text-white"
+                        >
+                          Cash Paid
+                        </option>
                       </select>
                     </div>
 
-                    <div className="sm:col-span-2">
-                      <p className="text-xs text-[rgb(var(--app-text-muted))]">txnId</p>
-                      <input
-                        value={commissionTxnId}
-                        onChange={(e) => setCommissionTxnId(e.target.value)}
-                        className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none"
-                        placeholder="unique id"
-                      />
-                    </div>
+                    {commissionPayout === "cash" ? (
+                      <>
+                        <div className="sm:col-span-2">
+                          <p className="text-xs text-[rgb(var(--app-text-muted))]">
+                            txnId
+                          </p>
+                          <input
+                            value={commissionTxnId}
+                            onChange={(e) => setCommissionTxnId(e.target.value)}
+                            className="mt-1 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                            placeholder="cash payment transaction id"
+                            disabled={!canSettle}
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <p className="text-xs text-[rgb(var(--app-text-muted))]">
+                            Admin Note
+                          </p>
+                          <textarea
+                            value={adminNote}
+                            onChange={(e) => setAdminNote(e.target.value)}
+                            className="mt-1 min-h-20 w-full rounded-2xl border border-[rgb(var(--app-border))] bg-transparent/60 px-3 py-2 text-sm text-[rgb(var(--app-text))] outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                            placeholder="cash paid note লিখুন"
+                            disabled={!canSettle}
+                          />
+                        </div>
+                      </>
+                    ) : null}
                   </div>
+
+                  {agent && settleAmount > pendingTotal ? (
+                    <p className="mt-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+                      Amount pending commission ({money(pendingTotal)}) থেকে
+                      বেশি।
+                    </p>
+                  ) : null}
 
                   <div className="mt-3 flex gap-2">
                     <Button
                       className="rounded-2xl"
                       onClick={submitCommission}
-                      disabled={settlingCommission}
+                      disabled={!canSettle || settlingCommission}
                     >
                       {settlingCommission
                         ? "Processing..."
-                        : "Settle Commission"}
+                        : commissionPayout === "balance"
+                          ? "Add to Rolling Balance"
+                          : "Settle Cash Paid"}
                     </Button>
                   </div>
 
                   <Separator className="my-4 bg-[rgb(var(--app-surface-3))]/80" />
 
                   <p className="text-xs text-[rgb(var(--app-text-muted))]">
-                    Cash: pending decreases, wallet unchanged. <br />
-                    Balance: pending decreases, wallet.available increases.
+                    Default: Add to Rolling Balance — pending commission কমবে
+                    এবং agent-এর rolling balance বাড়বে।
+                    <br />
+                    Cash Paid: admin বাইরে cash payment করলে pending commission
+                    কমবে; txnId এবং note required।
                   </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Notes */}
             <Card className="rounded-2xl border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface-2))]/70 backdrop-blur-md">
               <CardHeader>
-                <CardTitle className="text-base text-[rgb(var(--app-text))]">Notes</CardTitle>
+                <CardTitle className="text-base text-[rgb(var(--app-text))]">
+                  Notes
+                </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs text-[rgb(var(--app-text-muted))] space-y-2">
-                <p>• Float Requests control agent float (ggrBalance).</p>
-                <p>• CompanyDue settlement is always cash (agent ↔ company).</p>
-                <p>• All actions are recorded in AgentLedger for reports.</p>
+              <CardContent className="space-y-2 text-xs text-[rgb(var(--app-text-muted))]">
+                <p>• আগে Preview না করলে settlement button কাজ করবে না।</p>
+                <p>
+                  • Amount কখনো pending commission থেকে বেশি settle করা যাবে না।
+                </p>
+                <p>
+                  • Balance settlement হলে AgentLedger record, rolling balance
+                  update এবং agent notification তৈরি হবে।
+                </p>
               </CardContent>
             </Card>
           </div>
