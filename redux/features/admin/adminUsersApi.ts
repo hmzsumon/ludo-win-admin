@@ -302,6 +302,18 @@ export const adminUsersApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: (_r, _e, { id }) => [{ type: "Transactions", id }],
     }),
+
+    adminUpdateName: builder.mutation<
+      { success: boolean; message: string; user: any },
+      { id: string; name: string }
+    >({
+      query: ({ id, name }) => ({
+        url: `/admin/users/${id}/name`,
+        method: "PATCH",
+        body: { name },
+      }),
+      invalidatesTags: ["User", "Users"],
+    }),
   }),
 });
 
@@ -315,4 +327,5 @@ export const {
   useAdminToggleWithdrawBlockMutation,
   useAdminPermanentCloseMutation,
   useAdminDeleteTransactionsMutation,
+  useAdminUpdateNameMutation,
 } = adminUsersApi;

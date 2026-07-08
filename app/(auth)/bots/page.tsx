@@ -1,6 +1,6 @@
 /* ────────── imports ────────── */
 "use client";
-import AdminUsersTable from "@/components/admin/AdminUsersTable";
+import AdminBotsTable from "@/components/admin/AdminBotsTable";
 import AdminUsersToolbar from "@/components/admin/AdminUsersToolbar";
 import { useGetAllUsersQuery } from "@/redux/features/admin/adminUsersApi";
 
@@ -83,7 +83,7 @@ const AllBotsPage = () => {
           }}
         />
 
-        <AdminUsersTable
+        <AdminBotsTable
           rows={onlyBots}
           loading={isLoading || isFetching}
           total={total}
