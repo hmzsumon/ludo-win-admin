@@ -7,7 +7,7 @@ export interface ILudoBotConfig {
   _id: string;
   enabled: boolean;
   matchTimeoutSeconds: number;
-  activeMode: "easy" | "assist";
+  activeMode: "easy" | "assist" | "smart";
   createdAt: string;
   updatedAt: string;
 }
@@ -20,7 +20,7 @@ export interface LudoBotConfigResponse {
 export interface UpdateLudoBotConfigPayload {
   enabled?: boolean;
   matchTimeoutSeconds?: number;
-  activeMode?: "easy" | "assist";
+  activeMode?: "easy" | "assist" | "smart";
 }
 
 /* ────────── API ────────── */

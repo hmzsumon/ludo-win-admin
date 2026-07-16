@@ -6,7 +6,7 @@ import {
 } from "@/redux/features/lodo-bot/ludoBotApi";
 /* ── app/(auth)/ludo-bot-config/page.tsx ───────────────────────────────── */
 
-import { Bot, CheckCircle2, Clock, Loader2, Zap } from "lucide-react";
+import { Bot, CheckCircle2, Clock, Loader2, Scale, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
 /* ─── small helper components ─────────────────────────────────────────── */
@@ -55,7 +55,7 @@ function ModeCard({
   disabled,
   onSelect,
 }: {
-  mode: "easy" | "assist";
+  mode: "easy" | "assist" | "smart";
   label: string;
   description: string;
   icon: React.ElementType;
@@ -117,7 +117,9 @@ export default function LudoBotConfigPage() {
 
   /* local state — synced from server */
   const [enabled, setEnabled] = useState(true);
-  const [activeMode, setActiveMode] = useState<"easy" | "assist">("easy");
+  const [activeMode, setActiveMode] = useState<"easy" | "assist" | "smart">(
+    "easy",
+  );
   const [matchTimeoutSeconds, setMatchTimeoutSeconds] = useState(30);
   const [toast, setToast] = useState<{
     type: "success" | "error";
@@ -143,7 +145,7 @@ export default function LudoBotConfigPage() {
   /* save handler */
   async function save(patch: {
     enabled?: boolean;
-    activeMode?: "easy" | "assist";
+    activeMode?: "easy" | "assist" | "smart";
     matchTimeoutSeconds?: number;
   }) {
     try {
@@ -242,7 +244,7 @@ export default function LudoBotConfigPage() {
           <p className="mb-4 text-sm text-[rgb(var(--app-text-muted))]">
             যেকোনো একটি mode সবসময় active থাকবে
           </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <ModeCard
               mode="easy"
               label="Easy Mode"
@@ -267,6 +269,19 @@ export default function LudoBotConfigPage() {
                 if (activeMode === "assist") return;
                 setActiveMode("assist");
                 save({ activeMode: "assist" });
+              }}
+            />
+            <ModeCard
+              mode="smart"
+              label="Smart Balance"
+              description="Bot smart move করবে, তবে dice ও progress natural balance বজায় রাখবে।"
+              icon={Scale}
+              selected={activeMode === "smart"}
+              disabled={isSaving}
+              onSelect={() => {
+                if (activeMode === "smart") return;
+                setActiveMode("smart");
+                save({ activeMode: "smart" });
               }}
             />
           </div>
