@@ -2,7 +2,11 @@
 "use client";
 import AdminUsersTable from "@/components/admin/AdminUsersTable";
 import AdminUsersToolbar from "@/components/admin/AdminUsersToolbar";
-import { useGetAllUsersQuery } from "@/redux/features/admin/adminUsersApi";
+import {
+  useGetAdminUserStatsQuery,
+  useGetAllUsersQuery,
+  useMigrateLegacyUsersMutation,
+} from "@/redux/features/admin/adminUsersApi";
 
 import { useMemo, useState } from "react";
 
@@ -28,6 +32,24 @@ const AllUsersPage = () => {
     sortBy,
     sortOrder,
   });
+
+  const { data: statsData } = useGetAdminUserStatsQuery();
+  const [migrateLegacy, { isLoading: migrating }] =
+    useMigrateLegacyUsersMutation();
+  const [migrationMessage, setMigrationMessage] = useState("");
+
+  const runMigration = async (dryRun: boolean) => {
+    try {
+      const r = await migrateLegacy({ dryRun }).unwrap();
+      setMigrationMessage(
+        `${dryRun ? "Preview" : "Migration"}: ${JSON.stringify(r.summary)}`,
+      );
+    } catch (e: any) {
+      setMigrationMessage(
+        e?.data?.error || e?.data?.message || "Migration failed",
+      );
+    }
+  };
 
   const users = data?.users ?? [];
   const total = data?.pagination?.total ?? 0;
@@ -58,6 +80,51 @@ const AllUsersPage = () => {
               Admin dashboard • manage users
             </p>
           </div>
+        </div>
+
+        <div className="mb-5 grid gap-3 sm:grid-cols-3">
+          {[
+            { label: "Total users", value: statsData?.stats.total },
+            { label: "Today", value: statsData?.stats.today },
+            { label: "Previous", value: statsData?.stats.previous },
+          ].map((x) => (
+            <div
+              key={x.label}
+              className="rounded-2xl border border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface))] p-4"
+            >
+              <p className="text-xs text-[rgb(var(--app-text-muted))]">
+                {x.label}
+              </p>
+              <p className="mt-1 text-2xl font-bold">{x.value ?? 0}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mb-5 rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <b>Legacy user repair</b>
+            <button
+              disabled={migrating}
+              onClick={() => runMigration(true)}
+              className="rounded-lg border border-cyan-400/40 px-3 py-2 text-xs text-cyan-300"
+            >
+              Preview
+            </button>
+            <button
+              disabled={migrating}
+              onClick={() =>
+                confirm("Update all valid old human users?") &&
+                runMigration(false)
+              }
+              className="rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-slate-950"
+            >
+              Repair all valid users
+            </button>
+          </div>
+          {migrationMessage && (
+            <p className="mt-2 break-all text-xs text-amber-300">
+              {migrationMessage}
+            </p>
+          )}
         </div>
 
         <AdminUsersToolbar

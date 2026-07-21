@@ -296,6 +296,18 @@ export default function DepositDetailsPage({
               </Row>
             </div>
           </div>
+          <div className="border-t border-white/10 p-6">
+            <h3 className="mb-3 text-sm font-semibold text-cyan-300">
+              Complete Deposit Payload
+            </h3>
+            <p className="mb-3 text-xs text-white/50">
+              All fields returned by the API are shown below for audit and
+              debugging.
+            </p>
+            <pre className="max-h-[520px] overflow-auto rounded-xl border border-white/10 bg-black/30 p-4 text-xs leading-5 text-white/80">
+              {JSON.stringify(deposit ?? {}, null, 2)}
+            </pre>
+          </div>
         </Card>
       </div>
     </main>

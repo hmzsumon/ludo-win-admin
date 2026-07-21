@@ -36,6 +36,8 @@ export const apiSlice = createApi({
     "Dashboard",
     "Maintenance",
     "MonthlyReports",
+    "SmsGateways",
+    "SmsGatewayMessages",
   ],
   endpoints: (builder) => ({}),
 });

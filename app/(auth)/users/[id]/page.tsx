@@ -15,6 +15,7 @@ import {
   PermanentCloseModal,
 } from "@/components/admin/user-details/UserDetailsModals";
 import UserDetailsStats from "@/components/admin/user-details/UserDetailsStats";
+import UserSupportPanel from "@/components/admin/user-details/UserSupportPanel";
 import UserWalletSummary from "@/components/admin/user-details/UserWalletSummary";
 import {
   useAdminPermanentCloseMutation,
@@ -235,6 +236,8 @@ export default function AdminUserDetailsPage() {
             WALLET SUMMARY
             ════════════════════════════════════ */}
         <UserWalletSummary wallet={wallet} />
+
+        <UserSupportPanel user={user} onDone={refetch} />
 
         {/* ════════════════════════════════════
             DANGER ZONE

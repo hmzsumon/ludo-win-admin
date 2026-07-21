@@ -22,6 +22,13 @@ export type AdminUserRow = {
   is_block?: boolean;
   is_withdraw_block?: boolean;
   email_verified?: boolean;
+  phone_verified?: boolean;
+  verify_code?: string;
+  verification_channel?: "SMS" | "EMAIL";
+  verification_code_expires_at?: string;
+  countryCode?: string;
+  countryIso?: string;
+  localPhone?: string;
   two_factor_enabled?: boolean;
   kyc_verified?: boolean;
   kyc_request?: boolean;
@@ -185,6 +192,59 @@ export const adminUsersApi = apiSlice.injectEndpoints({
       providesTags: ["Users"],
     }),
 
+    getAdminUserStats: builder.query<
+      {
+        success: boolean;
+        stats: { total: number; today: number; previous: number };
+      },
+      void
+    >({
+      query: () => ({ url: "/admin/users-stats" }),
+      providesTags: ["Users"],
+    }),
+
+    migrateLegacyUsers: builder.mutation<any, { dryRun: boolean }>({
+      query: (body) => ({
+        url: "/admin/users/migrate-legacy",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Users"],
+    }),
+
+    repairLegacyUser: builder.mutation<any, { id: string }>({
+      query: ({ id }) => ({
+        url: `/admin/users/${id}/repair-legacy`,
+        method: "POST",
+      }),
+      invalidatesTags: (_r, _e, { id }) => [{ type: "Users", id }],
+    }),
+
+    getUserGameHistory: builder.query<
+      any,
+      { id: string; page?: number; limit?: number }
+    >({
+      query: ({ id, page = 1, limit = 20 }) => ({
+        url: `/admin/users/${id}/game-history?page=${page}&limit=${limit}`,
+      }),
+      providesTags: (_r, _e, { id }) => [{ type: "Users", id: `games-${id}` }],
+    }),
+
+    refundGameWager: builder.mutation<
+      any,
+      { id: string; matchId: string; amount?: number; note?: string }
+    >({
+      query: ({ id, matchId, ...body }) => ({
+        url: `/admin/users/${id}/game-history/${matchId}/refund`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "Users", id },
+        { type: "Users", id: `games-${id}` },
+      ],
+    }),
+
     /* ────────── details endpoint ────────── */
     getUserById: builder.query<UserDetailsResponse, { id: string }>({
       query: ({ id }) => ({ url: `/admin/users/${id}` }),
@@ -319,6 +379,11 @@ export const adminUsersApi = apiSlice.injectEndpoints({
 
 export const {
   useGetAllUsersQuery,
+  useGetAdminUserStatsQuery,
+  useMigrateLegacyUsersMutation,
+  useRepairLegacyUserMutation,
+  useGetUserGameHistoryQuery,
+  useRefundGameWagerMutation,
   useGetUserByIdQuery,
   useGetUserTransactionsQuery,
   useAdminUpdateBalanceMutation,

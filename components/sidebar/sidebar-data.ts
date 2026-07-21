@@ -10,6 +10,7 @@ import {
   Megaphone,
   MessageSquare,
   Settings,
+  Smartphone,
   SquareChartGantt,
   SquareGanttChart,
   Upload,
@@ -124,6 +125,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Maintenance",
     icon: Wrench,
     href: "/maintenance",
+  },
+  {
+    key: "sms-gateways",
+    label: "SMS Gateways",
+    icon: Smartphone,
+    href: "/sms-gateways",
   },
 
   {
