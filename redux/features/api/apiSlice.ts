@@ -37,6 +37,8 @@ export const apiSlice = createApi({
     "Maintenance",
     "MonthlyReports",
     "FacebookTraffic",
+    "SmsGateways",
+    "SmsGatewayMessages",
   ],
   endpoints: (builder) => ({}),
 });
