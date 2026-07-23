@@ -7,7 +7,11 @@ import { Badge, InfoRow } from "./UserDetailsShared";
 import { fmtDate } from "./userDetailsUtils";
 
 /* ────────── info sections ────────── */
-export default function UserDetailsInfoSections({ user }: { user: AdminUserRow }) {
+export default function UserDetailsInfoSections({
+  user,
+}: {
+  user: AdminUserRow;
+}) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -115,7 +119,11 @@ export default function UserDetailsInfoSections({ user }: { user: AdminUserRow }
           />
         </InfoRow>
         <InfoRow label="KYC Request">
-          <Badge active={!!user.kyc_request} trueLabel="Requested" falseLabel="No" />
+          <Badge
+            active={!!user.kyc_request}
+            trueLabel="Requested"
+            falseLabel="No"
+          />
         </InfoRow>
         <InfoRow label="KYC Step">{String(user.kyc_step ?? "—")}</InfoRow>
         <InfoRow label="2FA Enabled">
@@ -133,7 +141,11 @@ export default function UserDetailsInfoSections({ user }: { user: AdminUserRow }
           />
         </InfoRow>
         <InfoRow label="Blocked">
-          <Badge active={!user.is_block} trueLabel="Clear" falseLabel="Blocked" />
+          <Badge
+            active={!user.is_block}
+            trueLabel="Clear"
+            falseLabel="Blocked"
+          />
         </InfoRow>
 
         {/* ────────── permanent close info ────────── */}

@@ -1,6 +1,7 @@
 // Central place to edit menu items
 import type { LucideIcon } from "lucide-react";
 import {
+  BarChart3,
   Bot,
   CalendarDays,
   Download,
@@ -131,6 +132,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "SMS Gateways",
     icon: Smartphone,
     href: "/sms-gateways",
+  },
+  {
+    key: "facebook-traffic",
+    label: "Facebook Traffic",
+    icon: BarChart3,
+    href: "/facebook-traffic",
   },
 
   {
