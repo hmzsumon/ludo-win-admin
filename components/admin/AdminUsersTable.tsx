@@ -40,6 +40,7 @@ const toDateLabel = (iso?: string | null) =>
 const columns: GridColDef<AdminUserRow>[] = [
   { field: "customerId", headerName: "Customer ID", width: 140 },
   { field: "name", headerName: "Name", width: 200 },
+  { field: "phone", headerName: "Phone", width: 150 },
   {
     field: "m_balance",
     headerName: "Balance",

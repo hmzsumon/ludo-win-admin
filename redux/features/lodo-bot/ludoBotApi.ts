@@ -8,6 +8,12 @@ export interface ILudoBotConfig {
   enabled: boolean;
   matchTimeoutSeconds: number;
   activeMode: "easy" | "assist" | "smart";
+  /** NEW ▸ Human six chance for Bot-vs-Human only. */
+  humanSixChancePercent: number;
+  /** NEW ▸ Admin-controlled Play With Friends feature switches. */
+  playWithFriendsEnabled: boolean;
+  freeFriendsEnabled: boolean;
+  wagerFriendsEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -21,6 +27,10 @@ export interface UpdateLudoBotConfigPayload {
   enabled?: boolean;
   matchTimeoutSeconds?: number;
   activeMode?: "easy" | "assist" | "smart";
+  humanSixChancePercent?: number;
+  playWithFriendsEnabled?: boolean;
+  freeFriendsEnabled?: boolean;
+  wagerFriendsEnabled?: boolean;
 }
 
 /* ────────── API ────────── */

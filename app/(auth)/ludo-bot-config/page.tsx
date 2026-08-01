@@ -6,7 +6,15 @@ import {
 } from "@/redux/features/lodo-bot/ludoBotApi";
 /* ── app/(auth)/ludo-bot-config/page.tsx ───────────────────────────────── */
 
-import { Bot, CheckCircle2, Clock, Loader2, Scale, Zap } from "lucide-react";
+import {
+  Bot,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  Percent,
+  Scale,
+  Zap,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 /* ─── small helper components ─────────────────────────────────────────── */
@@ -43,6 +51,58 @@ function StatusBadge({ active }: { active: boolean }) {
     </span>
   );
 }
+
+/* NEW ▸ Reusable switch for Friends feature gates. */
+function FeatureToggle({
+  label,
+  description,
+  active,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  active: boolean;
+  disabled: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <div>
+        <p className="font-semibold">{label}</p>
+        <p className="mt-0.5 text-sm text-[rgb(var(--app-text-muted))]">
+          {description}
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange(!active)}
+        className={`relative h-7 w-14 shrink-0 rounded-full transition-colors ${
+          active ? "bg-indigo-600" : "bg-white/15"
+        } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+      >
+        <span
+          className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-md transition-all ${
+            active ? "left-8" : "left-1"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
+const MIN_HUMAN_SIX_CHANCE = 16.67;
+const MAX_HUMAN_SIX_CHANCE = 55;
+
+/* NEW ▸ Keep slider/input values inside the same API validation range. */
+const normalizeHumanSixChance = (value: number) =>
+  Number(
+    Math.min(
+      MAX_HUMAN_SIX_CHANCE,
+      Math.max(MIN_HUMAN_SIX_CHANCE, Number(value) || MIN_HUMAN_SIX_CHANCE),
+    ).toFixed(2),
+  );
 
 /* ─── mode card ───────────────────────────────────────────────────────── */
 
@@ -121,6 +181,12 @@ export default function LudoBotConfigPage() {
     "easy",
   );
   const [matchTimeoutSeconds, setMatchTimeoutSeconds] = useState(30);
+  /* NEW ▸ Restored: do not remove the Human Six Chance control. */
+  const [humanSixChancePercent, setHumanSixChancePercent] =
+    useState(MIN_HUMAN_SIX_CHANCE);
+  const [playWithFriendsEnabled, setPlayWithFriendsEnabled] = useState(true);
+  const [freeFriendsEnabled, setFreeFriendsEnabled] = useState(true);
+  const [wagerFriendsEnabled, setWagerFriendsEnabled] = useState(true);
   const [toast, setToast] = useState<{
     type: "success" | "error";
     msg: string;
@@ -132,6 +198,14 @@ export default function LudoBotConfigPage() {
       setEnabled(data.config.enabled);
       setActiveMode(data.config.activeMode);
       setMatchTimeoutSeconds(data.config.matchTimeoutSeconds);
+      setHumanSixChancePercent(
+        normalizeHumanSixChance(
+          Number(data.config.humanSixChancePercent ?? 100 / 6),
+        ),
+      );
+      setPlayWithFriendsEnabled(data.config.playWithFriendsEnabled !== false);
+      setFreeFriendsEnabled(data.config.freeFriendsEnabled !== false);
+      setWagerFriendsEnabled(data.config.wagerFriendsEnabled !== false);
     }
   }, [data]);
 
@@ -147,6 +221,10 @@ export default function LudoBotConfigPage() {
     enabled?: boolean;
     activeMode?: "easy" | "assist" | "smart";
     matchTimeoutSeconds?: number;
+    humanSixChancePercent?: number;
+    playWithFriendsEnabled?: boolean;
+    freeFriendsEnabled?: boolean;
+    wagerFriendsEnabled?: boolean;
   }) {
     try {
       await updateConfig(patch).unwrap();
@@ -238,6 +316,46 @@ export default function LudoBotConfigPage() {
           </div>
         </SectionCard>
 
+        {/* NEW ▸ Admin can independently gate Friends, Free and Wager entry. */}
+        <SectionCard>
+          <p className="mb-1 font-semibold">Play With Friends Controls</p>
+          <p className="mb-3 text-sm text-[rgb(var(--app-text-muted))]">
+            Client button এবং server API—দুই জায়গাতেই এই setting কার্যকর হবে।
+          </p>
+          <div className="divide-y divide-white/10">
+            <FeatureToggle
+              label="Play With Friends Button"
+              description="পুরো Friends feature চালু বা বন্ধ করুন"
+              active={playWithFriendsEnabled}
+              disabled={isSaving}
+              onChange={(next) => {
+                setPlayWithFriendsEnabled(next);
+                save({ playWithFriendsEnabled: next });
+              }}
+            />
+            <FeatureToggle
+              label="Free Friends"
+              description="Stake ছাড়া friend room create/join নিয়ন্ত্রণ করুন"
+              active={freeFriendsEnabled}
+              disabled={isSaving || !playWithFriendsEnabled}
+              onChange={(next) => {
+                setFreeFriendsEnabled(next);
+                save({ freeFriendsEnabled: next });
+              }}
+            />
+            <FeatureToggle
+              label="Wager Friends"
+              description="Paid Classic/Master friend room create/join নিয়ন্ত্রণ করুন"
+              active={wagerFriendsEnabled}
+              disabled={isSaving || !playWithFriendsEnabled}
+              onChange={(next) => {
+                setWagerFriendsEnabled(next);
+                save({ wagerFriendsEnabled: next });
+              }}
+            />
+          </div>
+        </SectionCard>
+
         {/* ── mode selection ── */}
         <SectionCard>
           <p className="mb-1 font-semibold">Bot Mode</p>
@@ -285,6 +403,99 @@ export default function LudoBotConfigPage() {
               }}
             />
           </div>
+        </SectionCard>
+
+        {/* NEW ▸ Restored Human Six Chance section; required for Bot-vs-Human. */}
+        <SectionCard>
+          <div className="flex items-center gap-2">
+            <Percent className="h-4 w-4 text-[rgb(var(--app-text-muted))]" />
+            <p className="font-semibold">Human Six Chance</p>
+          </div>
+          <p className="mt-1 text-sm text-[rgb(var(--app-text-muted))]">
+            শুধু Bot বনাম Human ম্যাচে human player-এর ৬ পাওয়ার chance। Human
+            বনাম Human ম্যাচে natural ১৬.৬৭% থাকবে।
+          </p>
+
+          <div className="mt-4 flex items-center gap-3">
+            <input
+              type="range"
+              min={MIN_HUMAN_SIX_CHANCE}
+              max={MAX_HUMAN_SIX_CHANCE}
+              step={0.01}
+              value={humanSixChancePercent}
+              disabled={isSaving}
+              onChange={(event) =>
+                setHumanSixChancePercent(
+                  normalizeHumanSixChance(Number(event.target.value)),
+                )
+              }
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-indigo-500 disabled:opacity-50"
+            />
+
+            <div className="relative w-28 shrink-0">
+              <input
+                aria-label="Human six chance percentage"
+                type="number"
+                min={MIN_HUMAN_SIX_CHANCE}
+                max={MAX_HUMAN_SIX_CHANCE}
+                step={0.01}
+                value={humanSixChancePercent}
+                disabled={isSaving}
+                onChange={(event) =>
+                  setHumanSixChancePercent(
+                    normalizeHumanSixChance(Number(event.target.value)),
+                  )
+                }
+                className="w-full rounded-lg border border-[rgb(var(--app-border))] bg-[rgb(var(--app-surface-3))]/80 px-3 py-2 pr-7 font-mono text-sm text-[rgb(var(--app-text))] outline-none focus:border-indigo-500 disabled:opacity-50"
+              />
+              <span className="pointer-events-none absolute right-2 top-2 text-sm text-[rgb(var(--app-text-muted))]">
+                %
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {[16.67, 35, 55].map((value) => (
+              <button
+                key={value}
+                type="button"
+                disabled={isSaving}
+                onClick={() => setHumanSixChancePercent(value)}
+                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  humanSixChancePercent === value
+                    ? "border-indigo-500 bg-indigo-500/15 text-indigo-300"
+                    : "border-[rgb(var(--app-border))] text-[rgb(var(--app-text-muted))] hover:border-white/25"
+                } disabled:opacity-50`}
+              >
+                {value}%
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            disabled={
+              isSaving ||
+              Math.abs(
+                humanSixChancePercent -
+                  Number(data?.config?.humanSixChancePercent ?? 100 / 6),
+              ) < 0.005
+            }
+            onClick={() =>
+              save({
+                humanSixChancePercent: normalizeHumanSixChance(
+                  humanSixChancePercent,
+                ),
+              })
+            }
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold transition-opacity hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Human Six Chance সেভ করুন"
+            )}
+          </button>
         </SectionCard>
 
         {/* ── match timeout ── */}
@@ -356,6 +567,29 @@ export default function LudoBotConfigPage() {
             <div className="flex justify-between">
               <span>matchTimeoutSeconds</span>
               <span>{data?.config?.matchTimeoutSeconds ?? "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>humanSixChancePercent</span>
+              <span className="text-indigo-300">
+                {Number(data?.config?.humanSixChancePercent ?? 100 / 6).toFixed(
+                  2,
+                )}
+                %
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>playWithFriendsEnabled</span>
+              <span>
+                {String(data?.config?.playWithFriendsEnabled ?? true)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>freeFriendsEnabled</span>
+              <span>{String(data?.config?.freeFriendsEnabled ?? true)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>wagerFriendsEnabled</span>
+              <span>{String(data?.config?.wagerFriendsEnabled ?? true)}</span>
             </div>
             <div className="flex justify-between">
               <span>updatedAt</span>
