@@ -40,6 +40,7 @@ export const apiSlice = createApi({
     "SmsGateways",
     "SmsGatewayMessages",
     "AppAnalytics",
+    "WelcomeBonuses",
   ],
   endpoints: (builder) => ({}),
 });

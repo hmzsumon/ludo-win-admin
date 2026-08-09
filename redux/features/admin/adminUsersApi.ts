@@ -1,5 +1,6 @@
 /* ────────── imports ────────── */
 import { apiSlice } from "../api/apiSlice";
+import type { WelcomeBonusDetails } from "./welcomeBonusApi";
 
 /* ────────── types ────────── */
 /* ────────── row types ────────── */
@@ -50,6 +51,18 @@ export type AdminUserRow = {
   s_bonus?: number;
   diamond_balance?: number;
   bonus_diamonds?: number;
+  welcome_bonus_granted?: boolean;
+  welcome_bonus_status?: "pending" | "granted" | "denied" | "failed";
+  welcome_bonus_reason_code?: string;
+  welcome_bonus_reason?: string;
+  welcome_bonus_device_key?: string;
+  welcome_bonus_amount?: number;
+  welcome_bonus_checked_at?: string;
+  welcome_bonus_granted_at?: string;
+  welcome_bonus_source?: "registration" | "admin" | "legacy";
+  welcome_bonus_granted_by_name?: string;
+  welcome_bonus_manual_note?: string;
+  welcome_bonus_attempts?: number;
 
   /* ────────── relations ────────── */
   sponsorId?: string;
@@ -104,6 +117,7 @@ export type AdminUserWallet = {
   totalDepositBonus: number;
   totalGameBonus: number;
   totalReferralBonus: number;
+  totalWelcomeBonus?: number;
   rankEarning: number;
   totalAiTradeProfit: number;
   totalAiTradeCommission: number;
@@ -122,6 +136,7 @@ export type UserDetailsResponse = {
   success: boolean;
   user: AdminUserRow;
   wallet: AdminUserWallet | null;
+  welcomeBonus: WelcomeBonusDetails;
 };
 
 /* ────────── types for transactions ────────── */

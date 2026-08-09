@@ -5,6 +5,7 @@ import {
   Bot,
   CalendarDays,
   Download,
+  Gift,
   Grid2x2,
   Handshake,
   LifeBuoy,
@@ -138,6 +139,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: "App Analytics",
     icon: Smartphone,
     href: "/app-analytics",
+  },
+
+  {
+    key: "welcome-bonuses",
+    label: "Welcome Bonuses",
+    icon: Gift,
+    href: "/welcome-bonuses",
   },
   {
     key: "facebook-traffic",

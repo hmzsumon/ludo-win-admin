@@ -17,6 +17,7 @@ import {
 import UserDetailsStats from "@/components/admin/user-details/UserDetailsStats";
 import UserSupportPanel from "@/components/admin/user-details/UserSupportPanel";
 import UserWalletSummary from "@/components/admin/user-details/UserWalletSummary";
+import WelcomeBonusPanel from "@/components/admin/user-details/WelcomeBonusPanel";
 import {
   useAdminPermanentCloseMutation,
   useAdminToggleActiveMutation,
@@ -236,6 +237,14 @@ export default function AdminUserDetailsPage() {
             WALLET SUMMARY
             ════════════════════════════════════ */}
         <UserWalletSummary wallet={wallet} />
+
+        {data?.welcomeBonus && (
+          <WelcomeBonusPanel
+            userId={user._id}
+            welcomeBonus={data.welcomeBonus}
+            onDone={refetch}
+          />
+        )}
 
         <UserSupportPanel user={user} onDone={refetch} />
 
