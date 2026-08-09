@@ -11,17 +11,22 @@ import FinancialSummaryCard from "@/components/admin/system-stats/FinancialSumma
 import PeriodStatCard from "@/components/admin/system-stats/PeriodStatCard";
 import { useGetAdminDashboardQuery } from "@/redux/features/admin/adminApi";
 import {
+  Activity,
   Banknote,
   Bot,
   Coins,
+  Download,
   Gift,
   HandCoins,
   Landmark,
   RefreshCw,
+  Smartphone,
   Trophy,
   Users,
   Wallet,
+  Wifi,
 } from "lucide-react";
+import Link from "next/link";
 
 /* ──────────  Page Header  ────────── */
 function DashboardHeader({
@@ -89,6 +94,37 @@ function EmptyState() {
   );
 }
 
+function AppMetricCard({
+  title,
+  value,
+  note,
+  icon,
+  color,
+}: {
+  title: string;
+  value: number;
+  note: string;
+  icon: React.ReactNode;
+  color: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/5 bg-[rgb(var(--app-surface))] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs text-[rgb(var(--app-text-muted))]">{title}</p>
+          <p className="mt-2 text-2xl font-bold">
+            {Number(value || 0).toLocaleString("en-US")}
+          </p>
+          <p className="mt-1 text-[10px] text-[rgb(var(--app-text-muted))]">
+            {note}
+          </p>
+        </div>
+        <div className={`rounded-xl p-2.5 ${color}`}>{icon}</div>
+      </div>
+    </div>
+  );
+}
+
 /* ──────────  Main Dashboard Page  ────────── */
 export default function AdminDashboardPage() {
   const { data, isLoading, isFetching, refetch } = useGetAdminDashboardQuery();
@@ -111,6 +147,48 @@ export default function AdminDashboardPage() {
               <FinancialSummaryCard
                 financials={d?.financials}
                 loading={loading}
+              />
+            </div>
+
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex-1">
+                <SectionLabel>App Analytics</SectionLabel>
+              </div>
+              <Link
+                href="/app-analytics"
+                className="ml-4 shrink-0 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-400"
+              >
+                View details
+              </Link>
+            </div>
+            <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <AppMetricCard
+                title="APK Downloads"
+                value={d?.appAnalytics?.totalDownloads || 0}
+                note="Download requests"
+                icon={<Download className="h-5 w-5" />}
+                color="bg-violet-500/10 text-violet-400"
+              />
+              <AppMetricCard
+                title="Opened Installations"
+                value={d?.appAnalytics?.openedInstallations || 0}
+                note="Installed and opened"
+                icon={<Smartphone className="h-5 w-5" />}
+                color="bg-cyan-500/10 text-cyan-400"
+              />
+              <AppMetricCard
+                title="Online App Devices"
+                value={d?.appAnalytics?.onlineNow || 0}
+                note="Seen within 2 minutes"
+                icon={<Wifi className="h-5 w-5" />}
+                color="bg-emerald-500/10 text-emerald-400"
+              />
+              <AppMetricCard
+                title="Active Today"
+                value={d?.appAnalytics?.activeToday || 0}
+                note="Unique installations"
+                icon={<Activity className="h-5 w-5" />}
+                color="bg-amber-500/10 text-amber-400"
               />
             </div>
 

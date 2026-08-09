@@ -134,6 +134,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/sms-gateways",
   },
   {
+    key: "app-analytics",
+    label: "App Analytics",
+    icon: Smartphone,
+    href: "/app-analytics",
+  },
+  {
     key: "facebook-traffic",
     label: "Facebook Traffic",
     icon: BarChart3,

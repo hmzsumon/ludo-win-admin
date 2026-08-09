@@ -55,6 +55,13 @@ export interface IUser {
 
 /* ──────────  Smart Dashboard Response Type  ────────── */
 export interface IDashboardData {
+  appAnalytics: {
+    totalDownloads: number;
+    openedInstallations: number;
+    onlineNow: number;
+    activeToday: number;
+  };
+
   users: {
     count: IPeriodStats;
     active: IPeriodStats;
