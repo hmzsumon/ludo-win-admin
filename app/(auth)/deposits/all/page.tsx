@@ -14,21 +14,15 @@ import { useGetAllDepositRequestsQuery } from "@/redux/features/deposit/depositA
 
 /* ────────── helpers ────────── */
 // /* ────────── Comments lik this ────────── */
-const fmtUSD = (n?: number) =>
-  Number(n ?? 0).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
-
 const fmtDate = (d: any) => {
   const iso =
     typeof d === "string"
       ? d
       : d?.$date
-      ? d.$date
-      : d?._seconds
-      ? new Date(d._seconds * 1000).toISOString()
-      : "";
+        ? d.$date
+        : d?._seconds
+          ? new Date(d._seconds * 1000).toISOString()
+          : "";
   return iso
     ? new Date(iso).toLocaleString("en-US", {
         year: "numeric",
@@ -50,12 +44,24 @@ type Deposit = {
   email?: string;
   customerId?: string;
   amount: number;
+  requestAmount?: number;
+  paymentType?: "bdt" | "crypto";
+  paid_currency?: string;
+  paid_amount?: number;
+  currency?: string;
+  walletTitle?: string;
   charge?: number;
   receivedAmount?: number;
   destinationAddress?: string;
   qrCode?: string; // base64
   chain?: string; // e.g. "usdt"
-  status: "pending" | "approved" | "rejected";
+  status:
+    | "pending"
+    | "approved"
+    | "confirmed"
+    | "rejected"
+    | "failed"
+    | "expired";
   isApproved?: boolean;
   isExpired?: boolean;
   confirmations?: number;
@@ -70,30 +76,110 @@ type Deposit = {
   sl_no?: number;
 };
 
+type StatusTab = "all" | "pending" | "approved" | "rejected";
+
+const getCurrency = (deposit: Deposit): "BDT" | "USD" => {
+  const rawCurrency = String(
+    deposit.paid_currency || deposit.currency || deposit.chain || "",
+  )
+    .trim()
+    .toUpperCase();
+
+  if (
+    deposit.paymentType === "bdt" ||
+    rawCurrency === "BDT" ||
+    ["BKASH", "NAGAD", "ROCKET"].includes(
+      String(deposit.walletTitle || "").toUpperCase(),
+    )
+  ) {
+    return "BDT";
+  }
+
+  /* USDT deposits are presented as USD as requested. */
+  return "USD";
+};
+
+const getPaidAmount = (deposit: Deposit) => {
+  const paidAmount = Number(deposit.paid_amount || 0);
+  if (paidAmount > 0) return paidAmount;
+
+  const requestAmount = Number(deposit.requestAmount || 0);
+  if (requestAmount > 0) return requestAmount;
+
+  return Number(deposit.amount || 0);
+};
+
+const getReceivedAmount = (deposit: Deposit) => {
+  const received = Number(deposit.receivedAmount || 0);
+  if (received > 0) return received;
+  return deposit.isApproved ||
+    ["approved", "confirmed"].includes(deposit.status)
+    ? getPaidAmount(deposit)
+    : 0;
+};
+
+const fmtMoney = (amount: number, currency: "BDT" | "USD") =>
+  `${Number(amount || 0).toLocaleString("en-US", {
+    minimumFractionDigits: currency === "USD" ? 2 : 0,
+    maximumFractionDigits: currency === "USD" ? 3 : 2,
+  })} ${currency}`;
+
+const fmtCurrencyTotals = (totals: { BDT: number; USD: number }) => {
+  const parts = (["BDT", "USD"] as const)
+    .filter((currency) => totals[currency] > 0)
+    .map((currency) => fmtMoney(totals[currency], currency));
+
+  return parts.length ? parts.join(" • ") : "0 BDT";
+};
+
+const statusGroup = (status: Deposit["status"]): Exclude<StatusTab, "all"> => {
+  if (["approved", "confirmed"].includes(status)) return "approved";
+  if (["rejected", "failed", "expired"].includes(status)) return "rejected";
+  return "pending";
+};
+
+const createdAtTimestamp = (deposit: Deposit) => {
+  const value = deposit.createdAt;
+  const raw = typeof value === "string" ? value : value?.$date;
+  const timestamp = raw ? new Date(raw).getTime() : 0;
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
 /* ────────── page ────────── */
 const AllDepositPage = () => {
   const { data, isLoading } = useGetAllDepositRequestsQuery(undefined);
   const deposits = (data?.deposits ?? []) as Deposit[];
 
-  const [selectedTab, setSelectedTab] = useState<
-    "all" | "pending" | "approved" | "rejected"
-  >("all");
+  const [selectedTab, setSelectedTab] = useState<StatusTab>("all");
 
   /* ────────── filter/sum ────────── */
   const filtered = useMemo(() => {
     if (selectedTab === "all") return deposits;
-    return deposits.filter((d) => d.status === selectedTab);
+    return deposits.filter((d) => statusGroup(d.status) === selectedTab);
   }, [deposits, selectedTab]);
 
-  const sum = (arr: Deposit[], key: keyof Deposit) =>
-    arr.reduce((acc, d) => acc + (Number(d[key]) || 0), 0);
-
-  const totalAmount = sum(filtered, "amount");
-  const totalReceived = sum(filtered, "receivedAmount");
+  const totals = useMemo(
+    () =>
+      filtered.reduce(
+        (acc, deposit) => {
+          const currency = getCurrency(deposit);
+          acc.amount[currency] += getPaidAmount(deposit);
+          acc.received[currency] += getReceivedAmount(deposit);
+          return acc;
+        },
+        {
+          amount: { BDT: 0, USD: 0 },
+          received: { BDT: 0, USD: 0 },
+        },
+      ),
+    [filtered],
+  );
 
   const statusCounts = useMemo(() => {
     const base = { all: deposits.length, pending: 0, approved: 0, rejected: 0 };
-    deposits.forEach((d) => (base[d.status] += 1));
+    deposits.forEach((d) => {
+      base[statusGroup(d.status)] += 1;
+    });
     return base;
   }, [deposits]);
 
@@ -111,11 +197,11 @@ const AllDepositPage = () => {
     { field: "customerId", headerName: "Customer ID", width: 120 },
     { field: "name", headerName: "Name", width: 160 },
     {
-      field: "chain",
-      headerName: "Chain",
+      field: "paid_currency",
+      headerName: "Currency",
       width: 90,
       renderCell: (p) => (
-        <span className="text-xs uppercase">{p.row.chain ?? "-"}</span>
+        <span className="text-xs font-semibold">{getCurrency(p.row)}</span>
       ),
     },
     {
@@ -123,7 +209,9 @@ const AllDepositPage = () => {
       headerName: "Amount",
       width: 120,
       renderCell: (p) => (
-        <span className="text-xs">{fmtUSD(p.row.amount)}</span>
+        <span className="text-xs">
+          {fmtMoney(getPaidAmount(p.row), getCurrency(p.row))}
+        </span>
       ),
     },
     {
@@ -132,7 +220,7 @@ const AllDepositPage = () => {
       width: 130,
       renderCell: (p) => (
         <span className="text-xs text-emerald-400">
-          {fmtUSD(p.row.receivedAmount ?? 0)}
+          {fmtMoney(getReceivedAmount(p.row), getCurrency(p.row))}
         </span>
       ),
     },
@@ -144,11 +232,11 @@ const AllDepositPage = () => {
       renderCell: (p) => (
         <span
           className={
-            p.row.status === "pending"
+            statusGroup(p.row.status) === "pending"
               ? "rounded-full border border-[#FF8A1A]/30 bg-[#FF8A1A]/15 px-2 py-0.5 text-xs text-[#FF8A1A]"
-              : p.row.status === "approved"
-              ? "rounded-full border border-emerald-400/30 bg-emerald-400/15 px-2 py-0.5 text-xs text-emerald-400"
-              : "rounded-full border border-rose-400/30 bg-rose-400/15 px-2 py-0.5 text-xs text-rose-400"
+              : statusGroup(p.row.status) === "approved"
+                ? "rounded-full border border-emerald-400/30 bg-emerald-400/15 px-2 py-0.5 text-xs text-emerald-400"
+                : "rounded-full border border-rose-400/30 bg-rose-400/15 px-2 py-0.5 text-xs text-rose-400"
           }
         >
           {p.row.status}
@@ -185,8 +273,12 @@ const AllDepositPage = () => {
 
   const rows = filtered
     .slice()
-    .sort((a, b) => (a.sl_no ?? 0) - (b.sl_no ?? 0))
-    .map((d) => ({ id: d._id, ...d }));
+    .sort(
+      (a, b) =>
+        createdAtTimestamp(b) - createdAtTimestamp(a) ||
+        String(b._id).localeCompare(String(a._id)),
+    )
+    .map((d, index) => ({ ...d, id: d._id, sl_no: index + 1 }));
 
   const tabs: Tab[] = [
     { key: "all", label: "All deposit", badge: statusCounts.all },
@@ -206,7 +298,9 @@ const AllDepositPage = () => {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card>
             <div className="flex items-center gap-3">
-              <span className="text-[rgb(var(--app-text-muted))]">Total Requests</span>
+              <span className="text-[rgb(var(--app-text-muted))]">
+                Total Requests
+              </span>
               <span className="ml-auto text-lg font-semibold">
                 {filtered.length}
               </span>
@@ -216,15 +310,17 @@ const AllDepositPage = () => {
             <div className="flex items-center gap-3">
               <span className="text-[rgb(var(--app-text-muted))]">Amount</span>
               <span className="ml-auto text-lg font-semibold">
-                {fmtUSD(totalAmount)}
+                {fmtCurrencyTotals(totals.amount)}
               </span>
             </div>
           </Card>
           <Card>
             <div className="flex items-center gap-3">
-              <span className="text-[rgb(var(--app-text-muted))]">Received</span>
+              <span className="text-[rgb(var(--app-text-muted))]">
+                Received
+              </span>
               <span className="ml-auto text-lg font-semibold text-emerald-400">
-                {fmtUSD(totalReceived)}
+                {fmtCurrencyTotals(totals.received)}
               </span>
             </div>
           </Card>
@@ -234,7 +330,9 @@ const AllDepositPage = () => {
         <Card
           className="mt-4"
           right={
-            <span className="text-xs text-[rgb(var(--app-text-muted))]">Filter by status</span>
+            <span className="text-xs text-[rgb(var(--app-text-muted))]">
+              Filter by status
+            </span>
           }
         >
           <Tabs
