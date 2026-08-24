@@ -11,7 +11,9 @@ import {
   LifeBuoy,
   Megaphone,
   MessageSquare,
+  PackageOpen,
   Settings,
+  UserPlus,
   Smartphone,
   SquareChartGantt,
   SquareGanttChart,
@@ -104,6 +106,13 @@ export const NAV_ITEMS: NavItem[] = [
   },
 
   {
+    key: "gift-box-config",
+    label: "Gift Box Config",
+    icon: PackageOpen,
+    href: "/gift-box-config",
+  },
+
+  {
     key: "notices",
     label: "User Notices",
     icon: Megaphone,
@@ -120,6 +129,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Agent Settlement",
     icon: Handshake,
     href: "/settlement",
+  },
+  {
+    key: "agent-applications",
+    label: "Agent Applications",
+    icon: UserPlus,
+    href: "/agent-applications",
   },
 
   {
