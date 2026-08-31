@@ -210,6 +210,37 @@ export const depositApi = apiSlice.injectEndpoints({
       invalidatesTags: (_res, _err, id) => [
         { type: "Deposit", id },
         { type: "Deposit", id: "LIST" },
+        "Deposits",
+      ],
+    }),
+
+    /* ────────── Admin Reject Deposit ────────── */
+    rejectDepositRequest: builder.mutation<
+      any,
+      { depositId: string; reason?: string }
+    >({
+      query: ({ depositId, reason }) => ({
+        url: `/admin/deposit/${depositId}/reject`,
+        method: "POST",
+        body: { reason: reason || "" },
+      }),
+      invalidatesTags: (_res, _err, { depositId }) => [
+        { type: "Deposit", id: depositId },
+        { type: "Deposit", id: "LIST" },
+        "Deposits",
+      ],
+    }),
+
+    /* ────────── Admin Delete Deposit (non-approved only) ────────── */
+    deleteDepositRequest: builder.mutation<any, string>({
+      query: (depositId) => ({
+        url: `/admin/deposit/${depositId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_res, _err, id) => [
+        { type: "Deposit", id },
+        { type: "Deposit", id: "LIST" },
+        "Deposits",
       ],
     }),
 
@@ -283,6 +314,8 @@ export const {
   useLazyPreviewManualDepositQuery,
   useCreateManualDepositMutation,
   useApproveDepositRequestMutation,
+  useRejectDepositRequestMutation,
+  useDeleteDepositRequestMutation,
   useGetDepositPaymentMethodsQuery,
   useCreateDepositPaymentMethodMutation,
   useUpdateDepositPaymentMethodMutation,
