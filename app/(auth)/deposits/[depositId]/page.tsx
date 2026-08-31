@@ -5,12 +5,17 @@ import Card from "@/components/new-ui/Card";
 import { Row } from "@/components/new-ui/DetailsList";
 import CopyToClipboard from "@/lib/CopyToClipboard";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Toaster, toast } from "react-hot-toast";
 import { FaArrowUpRightFromSquare } from "react-icons/fa6";
 
 /* ────────── API ────────── */
 import {
   useApproveDepositRequestMutation,
+  useDeleteDepositRequestMutation,
   useGetSingleDepositRequestQuery,
+  useRejectDepositRequestMutation,
 } from "@/redux/features/deposit/depositApi";
 
 /* ────────── helpers ────────── */
@@ -59,7 +64,13 @@ type Deposit = {
   destinationAddress?: string;
   qrCode?: string;
   chain?: string;
-  status: "pending" | "approved" | "rejected";
+  status:
+    | "pending"
+    | "approved"
+    | "confirmed"
+    | "rejected"
+    | "failed"
+    | "expired";
   isApproved?: boolean;
   isExpired?: boolean;
   confirmations?: number;
@@ -80,10 +91,18 @@ export default function DepositDetailsPage({
   params: { depositId: string };
 }) {
   const { depositId } = params;
+  const router = useRouter();
   const { data, isLoading } = useGetSingleDepositRequestQuery(depositId);
   const [approveDeposit, { isLoading: isApproving }] =
     useApproveDepositRequestMutation();
+  const [rejectDeposit, { isLoading: isRejecting }] =
+    useRejectDepositRequestMutation();
+  const [deleteDeposit, { isLoading: isDeleting }] =
+    useDeleteDepositRequestMutation();
   const deposit = (data?.deposit ?? data) as Deposit | undefined;
+
+  const [rejectReason, setRejectReason] = useState("");
+  const busy = isApproving || isRejecting || isDeleting;
 
   const {
     amount,
@@ -112,14 +131,58 @@ export default function DepositDetailsPage({
     callbackReceivedAt,
   } = deposit ?? {};
 
+  /* ────────── error message helper ────────── */
+  const readError = (err: any, fallback: string) =>
+    err?.data?.message || err?.data?.error || err?.error || fallback;
+
   /* ────────── Admin Approve Handler ────────── */
   const handleApprove = async () => {
-    if (!depositId || isApproving) return;
-    await approveDeposit(depositId).unwrap();
+    if (!depositId || busy) return;
+    try {
+      await approveDeposit(depositId).unwrap();
+      toast.success("Deposit approved");
+    } catch (err: any) {
+      toast.error(readError(err, "Approve failed"));
+    }
   };
+
+  /* ────────── Admin Reject Handler ────────── */
+  const handleReject = async () => {
+    if (!depositId || busy) return;
+    if (!window.confirm("Reject this deposit?")) return;
+    try {
+      await rejectDeposit({ depositId, reason: rejectReason.trim() }).unwrap();
+      toast.success("Deposit rejected");
+      setRejectReason("");
+    } catch (err: any) {
+      toast.error(readError(err, "Reject failed"));
+    }
+  };
+
+  /* ────────── Admin Delete Handler ────────── */
+  const handleDelete = async () => {
+    if (!depositId || busy) return;
+    if (
+      !window.confirm(
+        "Permanently delete this deposit? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    try {
+      await deleteDeposit(depositId).unwrap();
+      toast.success("Deposit deleted");
+      router.push("/deposits/crypto");
+    } catch (err: any) {
+      toast.error(readError(err, "Delete failed"));
+    }
+  };
+
+  const canModify = Boolean(deposit) && !isApproved && status !== "approved";
 
   return (
     <main className="min-h-screen bg-[#0B0D12] text-[#E6E6E6]">
+      <Toaster position="top-right" />
       <div className="mx-auto max-w-5xl p-4 sm:p-6">
         <Card className="p-0 overflow-hidden">
           {/* ────────── header ────────── */}
@@ -140,18 +203,41 @@ export default function DepositDetailsPage({
             </h2>
           </div>
 
-          {/* ────────── Admin Pending Actions ────────── */}
-          {status === "pending" && !isApproved && (
-            <div className="border-b border-white/10 p-6 text-center">
-              <button
-                onClick={handleApprove}
-                disabled={isApproving}
-                className="rounded-xl bg-emerald-500 px-5 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
-              >
-                {isApproving ? "Approving..." : "Approve Deposit"}
-              </button>
+          {/* ────────── Admin Actions ────────── */}
+          {canModify && (
+            <div className="space-y-3 border-b border-white/10 p-6">
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  onClick={handleApprove}
+                  disabled={busy}
+                  className="rounded-xl bg-emerald-500 px-5 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                >
+                  {isApproving ? "Approving..." : "Approve Deposit"}
+                </button>
+                <button
+                  onClick={handleReject}
+                  disabled={busy}
+                  className="rounded-xl bg-amber-500 px-5 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60"
+                >
+                  {isRejecting ? "Rejecting..." : "Reject Deposit"}
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={busy}
+                  className="rounded-xl bg-rose-600 px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {isDeleting ? "Deleting..." : "Delete Deposit"}
+                </button>
+              </div>
+              <input
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Reject reason (optional)"
+                className="mx-auto block w-full max-w-md rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/90 outline-none placeholder:text-white/40"
+              />
             </div>
           )}
+
 
           {/* ────────── content ────────── */}
           <div className="p-6">
