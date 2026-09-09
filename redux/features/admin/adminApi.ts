@@ -55,6 +55,7 @@ export interface IUser {
 
 /* ──────────  Smart Dashboard Response Type  ────────── */
 export interface IDashboardData {
+  aviator?: { rounds: IPeriodStats; wagered: IPeriodStats; paid: IPeriodStats; profit: IPeriodStats };
   appAnalytics: {
     totalDownloads: number;
     openedInstallations: number;
