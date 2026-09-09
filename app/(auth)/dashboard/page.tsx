@@ -127,7 +127,7 @@ function AppMetricCard({
 
 /* ──────────  Main Dashboard Page  ────────── */
 export default function AdminDashboardPage() {
-  const { data, isLoading, isFetching, refetch } = useGetAdminDashboardQuery();
+  const { data, isLoading, isFetching, refetch } = useGetAdminDashboardQuery(undefined, { pollingInterval: 30000 });
   const d = data?.dashboardData;
   const loading = isLoading || isFetching;
 
@@ -193,6 +193,18 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* ──────────  ROW 2: Income Breakdown  ────────── */}
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold">Aviator Game Accounts</h2>
+              <Link href="/aviator" className="rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-400">View history</Link>
+            </div>
+            <p className="mb-4 text-xs text-[rgb(var(--app-text-muted))]">বাংলাদেশ সময় অনুযায়ী শেষ হওয়া রিয়েল রাউন্ডের হিসাব। Fun mode ও simulated bot বাদ। লাভ/ক্ষতি = বেট − পেআউট; পরিচালন খরচ বাদ দেওয়ার আগে।</p>
+            {!d?.aviator ? <p className="mb-8 text-sm text-[rgb(var(--app-text-muted))]">{loading ? "Loading Aviator accounts…" : "Aviator accounts unavailable. Please refresh."}</p> : <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <PeriodStatCard title="Aviator Rounds" stat={d.aviator.rounds} showMonths icon={<Trophy className="h-4 w-4" />} iconColor="text-sky-400" />
+              <PeriodStatCard title="Aviator Real Bets (BDT)" stat={d.aviator.wagered} showMonths icon={<Coins className="h-4 w-4" />} iconColor="text-sky-400" />
+              <PeriodStatCard title="Aviator Payouts (BDT)" stat={d.aviator.paid} showMonths colorMode="cost" icon={<Wallet className="h-4 w-4" />} iconColor="text-rose-400" />
+              <PeriodStatCard title="Aviator Gross Profit / Loss (BDT)" stat={d.aviator.profit} showMonths colorMode="auto" icon={<Banknote className="h-4 w-4" />} iconColor="text-emerald-400" />
+            </div>}
+
             <SectionLabel>Company Income Breakdown</SectionLabel>
             <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
               <PeriodStatCard

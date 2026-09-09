@@ -18,6 +18,7 @@ interface PeriodStatCardProps {
   isDiamond?: boolean;
   colorMode?: "neutral" | "income" | "cost" | "auto";
   note?: string;
+  showMonths?: boolean;
 }
 
 /* ──────────  Number Helpers  ────────── */
@@ -73,6 +74,7 @@ export default function PeriodStatCard({
   isDiamond = false,
   colorMode = "neutral",
   note,
+  showMonths = false,
 }: PeriodStatCardProps) {
   const total = n(stat?.total);
   const today = n(stat?.today);
@@ -125,6 +127,10 @@ export default function PeriodStatCard({
           suffix={suffix}
           color={valueColor(total, colorMode)}
         />
+        {showMonths && <>
+          <PeriodItem label="This Month" value={thisMonth} suffix={suffix} color={valueColor(thisMonth, colorMode)} />
+          <PeriodItem label="Last Month" value={lastMonth} suffix={suffix} color={valueColor(lastMonth, colorMode)} />
+        </>}
       </div>
     </div>
   );

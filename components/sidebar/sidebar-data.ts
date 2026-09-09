@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   Bot,
+  Plane,
   CalendarDays,
   Download,
   Gift,
@@ -44,6 +45,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { key: "users", label: "All Users", icon: Users, href: "/users" },
   { key: "bots", label: "All Bots", icon: Bot, href: "/bots" },
+  { key: "aviator", label: "Aviator Control", icon: Plane, href: "/aviator" },
   { key: "agents", label: "All Agents", icon: Users, href: "/agents" },
 
   {
