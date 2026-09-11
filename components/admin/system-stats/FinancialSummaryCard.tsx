@@ -121,7 +121,7 @@ export default function FinancialSummaryCard({
               Company Profit / Loss
             </h2>
             <p className="text-[10px] text-[rgb(var(--app-text-muted))]">
-              Income - Cost auto calculated from SystemStats
+              Income − Cost · Includes settled Aviator bets and payouts
             </p>
           </div>
         </div>
