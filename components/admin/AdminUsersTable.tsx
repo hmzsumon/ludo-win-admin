@@ -85,6 +85,14 @@ const columns: GridColDef<AdminUserRow>[] = [
   },
 ];
 
+/* ────────── 🎮 All Users থেকে সরাসরি activity ────────── */
+columns.push({
+  field: "gameActivities", headerName: "Game Activities", width: 155, sortable: false, filterable: false,
+  renderCell: (params: GridRenderCellParams<AdminUserRow>) => params.row._id ? (
+    <Link href={`/users/${params.row._id}/game-activities`} className="text-teal-300 hover:underline">🎮 Activities</Link>
+  ) : <span>—</span>,
+});
+
 /* ────────── component ────────── */
 export default function AdminUsersTable(props: {
   rows: AdminUserRow[];

@@ -16,6 +16,7 @@ import {
 } from "@/components/admin/user-details/UserDetailsModals";
 import UserDetailsStats from "@/components/admin/user-details/UserDetailsStats";
 import UserSupportPanel from "@/components/admin/user-details/UserSupportPanel";
+import UserTurnoverSummary from "@/components/admin/user-details/UserTurnoverSummary";
 import UserWalletSummary from "@/components/admin/user-details/UserWalletSummary";
 import WelcomeBonusPanel from "@/components/admin/user-details/WelcomeBonusPanel";
 import {
@@ -211,6 +212,7 @@ export default function AdminUserDetailsPage() {
             KEY STATS
             ════════════════════════════════════ */}
         <UserDetailsStats user={user} wallet={wallet} />
+        <UserTurnoverSummary turnover={data?.turnover} />
 
         {/* ════════════════════════════════════
             ACTION CARDS ROW

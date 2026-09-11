@@ -21,6 +21,9 @@ export default function UserDetailsHeader({
         </div>
         <div>
           <div className="flex items-center gap-2 flex-wrap">
+        <Link href={`/users/${user._id}/game-activities`} className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-medium text-teal-500 hover:bg-teal-500/20">
+          🎮 Game Activities
+        </Link>
             <h1 className="text-xl font-bold">{user.name ?? "—"}</h1>
             <Badge
               active={!!user.is_active}
@@ -46,6 +49,9 @@ export default function UserDetailsHeader({
 
       {/* ────────── header actions ────────── */}
       <div className="flex items-center gap-2 flex-wrap">
+        <Link href={`/users/${user._id}/game-activities`} className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-medium text-teal-500 hover:bg-teal-500/20">
+          🎮 Game Activities
+        </Link>
         <Link
           href={`/users/${user._id}/transactions`}
           className="inline-flex items-center gap-1.5 rounded-xl border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-medium text-teal-300 hover:bg-teal-500/20 transition-colors"

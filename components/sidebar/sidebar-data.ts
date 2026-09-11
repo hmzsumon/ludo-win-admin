@@ -108,6 +108,8 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/ludo-bot-config",
   },
 
+  /* ────────── 🎁 বোনাস চালু/বন্ধ + turnover control ────────── */
+  { key: "bonus-management", label: "Bonus Management", icon: Gift, href: "/bonus-management" },
   {
     key: "gift-box-config",
     label: "Gift Box Config",

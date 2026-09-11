@@ -137,6 +137,7 @@ export type UserDetailsResponse = {
   user: AdminUserRow;
   wallet: AdminUserWallet | null;
   welcomeBonus: WelcomeBonusDetails;
+  turnover: { required: number; remaining: number; completed: number | null; played: number; today: number };
 };
 
 /* ────────── types for transactions ────────── */

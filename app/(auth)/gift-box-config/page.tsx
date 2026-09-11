@@ -88,7 +88,7 @@ export default function GiftBoxConfigPage() {
       setTiers(data.config.tiers || []);
       setDailyBudgetLimit(Number(data.config.dailyBudgetLimit || 0));
       setJackpotDailyLimit(Number(data.config.jackpotDailyLimit || 0));
-      setTurnoverMultiplier(Number(data.config.turnoverMultiplier || 1));
+      setTurnoverMultiplier(Number(data.config.turnoverMultiplier ?? 1));
     }
   }, [data]);
 
@@ -404,7 +404,7 @@ export default function GiftBoxConfigPage() {
                 jackpotDailyLimit ===
                   Number(data?.config?.jackpotDailyLimit || 0) &&
                 turnoverMultiplier ===
-                  Number(data?.config?.turnoverMultiplier || 1))
+                  Number(data?.config?.turnoverMultiplier ?? 1))
             }
             onClick={() =>
               save({ dailyBudgetLimit, jackpotDailyLimit, turnoverMultiplier })
