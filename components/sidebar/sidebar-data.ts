@@ -82,6 +82,7 @@ export const NAV_ITEMS: NavItem[] = [
 
     children: [
       { label: "All Withdrawals", href: "/withdrawals/all" },
+      { label: "Withdrawal Settings", href: "/withdrawals/fees" },
       {
         label: "Pending Withdrawals",
         href: "/withdrawals/pending",

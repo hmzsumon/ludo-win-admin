@@ -2,6 +2,7 @@
 "use client";
 
 /* ────────── imports ────────── */
+import { withdrawCurrency, withdrawAmount, withdrawNet, withdrawMethod, formatWithdrawMoney } from "@/lib/withdrawDisplay";
 import CopyToClipboard from "@/lib/CopyToClipboard";
 import {
   useAdminApproveWithdrawMutation,
@@ -30,11 +31,7 @@ import {
 } from "@/components/ui/sheet";
 
 /* ────────── helpers ────────── */
-const fmtUSD = (n?: number) =>
-  Number(n ?? 0).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
+const timestamp = (value?: string) => value ? new Date(value).toLocaleString("en-GB", { timeZone: "Asia/Dhaka", dateStyle: "medium", timeStyle: "medium" }) + " (Dhaka)" : "Not recorded";
 
 export default function SingleWithdraw({
   params,
@@ -65,6 +62,13 @@ export default function SingleWithdraw({
     netWork,
   } = withdraw ?? {};
 
+  const currency = withdrawCurrency(withdraw || {});
+  const payout = withdrawAmount(withdraw || {});
+  const netPayout = withdrawNet(withdraw || {});
+  const destination = method?.accountNumber || netWorkAddress || "";
+  const crypto = currency !== "BDT";
+  const mobileWallet = ["bkash", "nagad", "rocket"].includes(String(method?.name || "").toLowerCase());
+  const fmt = (value: number) => formatWithdrawMoney(value, currency);
   /* ────────── mutations ────────── */
   const [
     adminApproveWithdraw,
@@ -87,13 +91,14 @@ export default function SingleWithdraw({
   ] = useRejectWithdrawMutation();
 
   /* ────────── local state ────────── */
+  const [txnId, setTxnId] = useState("");
   const [reason, setReason] = useState("Transaction Id not matching");
   const [openApprove, setOpenApprove] = useState(false);
   const [openReject, setOpenReject] = useState(false);
 
   /* ────────── handlers ────────── */
-  const handleApprove = async () => adminApproveWithdraw({ id: _id });
-  const handleReject = async () => rejectWithdraw({ id: _id, reason });
+  const handleApprove = async () => adminApproveWithdraw({ id: withdraw?.id || _id, txnId: txnId.trim() || undefined });
+  const handleReject = async () => rejectWithdraw({ id: withdraw?.id || _id, reason });
 
   /* ────────── effects ────────── */
   useEffect(() => {
@@ -172,7 +177,7 @@ export default function SingleWithdraw({
                 </div>
                 <div>
                   <Row label="Amount:">
-                    <span className="font-semibold">{fmtUSD(amount)}</span>
+                    <span className="font-semibold">{fmt(payout)}</span>
                   </Row>
                 </div>
               </div>
@@ -181,42 +186,35 @@ export default function SingleWithdraw({
                 <div className="border-r border-[rgb(var(--app-border))]">
                   <Row label="Net Amount:">
                     <span className="flex items-center gap-2 font-semibold text-emerald-400">
-                      {fmtUSD(netAmount)}
+                      {fmt(netPayout)}
                       {netAmount !== undefined && (
-                        <CopyToClipboard text={String(netAmount)} />
+                        <CopyToClipboard text={String(netPayout)} />
                       )}
                     </span>
                   </Row>
                 </div>
                 <div>
                   <Row label="Charge:">
-                    <span className="font-semibold">{fmtUSD(charge)}</span>
+                    <span className="font-semibold">{fmt(Math.max(0, payout - netPayout))}</span>
                   </Row>
                 </div>
               </div>
 
-              <Row label="Network:">
-                <span className="font-semibold">{netWork}</span>
+              <Row label="Payment method:">
+                <span className="font-semibold">{withdrawMethod(withdraw || {})}</span>
               </Row>
-              <Row label="Address:">
-                <span className="flex items-center gap-2 font-semibold">
-                  {netWorkAddress}
+              {crypto && <Row label="Network:"><span className="font-semibold">{method?.name === "crypto" ? "TRC-20" : method?.name === "binance" ? "Binance Pay" : netWork || "Not recorded"}</span></Row>}
+              <Row label={crypto ? method?.name === "binance" ? "Binance Pay ID / UID:" : "Wallet address:" : "Account number:"}>
+                <span className="flex min-w-0 items-center gap-2 break-all font-semibold">
+                  {destination || "Not recorded"}
 
-                  <CopyToClipboard text={netWorkAddress} />
+                  {destination && <CopyToClipboard text={destination} />}
                 </span>
               </Row>
 
-              <Row label="Date Time:">
+              <Row label="Requested at:">
                 <span className="font-semibold">
-                  {createdAt
-                    ? new Date(createdAt).toLocaleString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "numeric",
-                      })
-                    : "-"}
+                  {timestamp(createdAt)}
                 </span>
               </Row>
 
@@ -229,12 +227,34 @@ export default function SingleWithdraw({
               </Row>
             </div>
 
+            <Row label="Payout currency:"><span>{currency}</span></Row>
+            <Row label="Assigned agent:"><span>{withdraw?.assignedAgent?.name || withdraw?.assignedAgentName || withdraw?.assignedAgentId || (crypto ? "Admin processing" : "Not recorded")}</span></Row>
+            {withdraw?.txnId && <Row label="Transaction ID:"><span>{withdraw.txnId}</span></Row>}
+            <Row label="Withdrawal ID:"><span>{withdraw?.id || _id || "Not recorded"}</span></Row>
+            <Row label="Withdrawal code:"><span>{withdraw?.withdrawCode || "Not recorded"}</span></Row>
+            <Row label="Requested diamonds:"><span>💎 {Number(withdraw?.diamonds_requested || amount || 0).toFixed(2)}</span></Row>
+            <Row label="Fee diamonds:"><span>💎 {Number(withdraw?.fee_diamonds ?? charge ?? 0).toFixed(2)}</span></Row>
+            <Row label="Net diamonds:"><span>💎 {Number(withdraw?.diamonds_requested ? withdraw.net_diamonds : withdraw?.net_diamonds || amount || 0).toFixed(2)}</span></Row>
+            <Row label="Fee (%):"><span>{withdraw?.fee_percent ?? 0}%</span></Row>
+            <Row label="User email:"><span>{withdraw?.email || "Not recorded"}</span></Row>
+            <Row label="Exchange rate:"><span>{withdraw?.exchange_rate ?? "Not recorded"}</span></Row>
+            <Row label="Assigned agent type:"><span>{withdraw?.assignedAgentType || "Not recorded"}</span></Row>
+            <Row label="Assigned agent ID:"><span>{withdraw?.assignedAgent?.customerId || withdraw?.assignedAgentId || "Not recorded"}</span></Row>
+            <Row label="Processed by:"><span>{withdraw?.processedBy?.name || withdraw?.processedById || "Not recorded"} {withdraw?.processedByRole && "(" + withdraw.processedByRole + ")"}</span></Row>
+            <Row label="Processor ID:"><span>{withdraw?.processedBy?.customerId || withdraw?.processedById || "Not recorded"}</span></Row>
+            <Row label="Approved at:"><span>{timestamp(withdraw?.approvedAt)}</span></Row>
+            <Row label="Processed at:"><span>{timestamp(withdraw?.processedAt)}</span></Row>
+            {status === "rejected" && <Row label="Rejected at:"><span>{timestamp(withdraw?.processedAt)}</span></Row>}
+            {withdraw?.cancelledAt && <Row label="Cancelled at:"><span>{timestamp(withdraw.cancelledAt)}</span></Row>}
+            <Row label="Last updated:"><span>{timestamp(withdraw?.updatedAt)}</span></Row>
+            {withdraw?.agentNumber && <Row label="Agent payout number:"><span>{withdraw.agentNumber}</span></Row>}
+            {status === "rejected" && <Row label="Rejection reason:"><span>{withdraw?.rejected_reason || "Not recorded"}</span></Row>}
+            {withdraw?.note && <Row label="Note:"><span>{withdraw.note}</span></Row>}
             {/* ────────── actions ────────── */}
             {status === "pending" && (
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <Button variant="primary" onClick={() => setOpenApprove(true)}>
-                  Approve
-                </Button>
+                {!mobileWallet && <Button variant="primary" onClick={() => setOpenApprove(true)}>Approve</Button>}
+                {mobileWallet && <p className="text-sm text-[rgb(var(--app-text-muted))]">Approval is handled by the assigned agent.</p>}
                 <Button variant="warning" onClick={() => setOpenReject(true)}>
                   Reject
                 </Button>
@@ -258,10 +278,11 @@ export default function SingleWithdraw({
           </SheetHeader>
 
           <p className="mt-2 text-sm text-[rgb(var(--app-text-soft))]">
-            Are you sure you want to approve for{" "}
-            <span className="text-[rgb(var(--app-text))]">{fmtUSD(amount)}</span>?
+            Confirm payment of{" "}
+            <span className="text-[rgb(var(--app-text))]">{fmt(netPayout)} {currency}</span>?
           </p>
 
+          <label className="mt-4 block text-sm">Payment transaction ID / reference<input className="mt-2 w-full rounded-lg border border-[rgb(var(--app-border))] bg-transparent p-3" value={txnId} onChange={event => setTxnId(event.target.value)} placeholder="Payment reference" /></label>
           <SheetFooter className="mt-4">
             <button
               onClick={() => setOpenApprove(false)}

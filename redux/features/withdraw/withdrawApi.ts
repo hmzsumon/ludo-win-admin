@@ -2,6 +2,13 @@ import { apiSlice } from "../api/apiSlice";
 
 export const withdrawApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
+    getWithdrawFees: builder.query<any, void>({
+      query: () => "/admin/withdraw/fees", providesTags: ["Withdraws"],
+    }),
+    updateWithdrawFee: builder.mutation<any, { key: string; minAmount: number; maxAmount: number | null; feePercent: number }>({
+      query: (body) => ({ url: "/admin/withdraw/fees", method: "PUT", body }),
+      invalidatesTags: ["Withdraws"],
+    }),
     // create new withdraw request
     createWithdrawRequest: builder.mutation<any, any>({
       query: (body) => ({
@@ -69,6 +76,8 @@ export const withdrawApi = apiSlice.injectEndpoints({
 });
 
 export const {
+  useGetWithdrawFeesQuery,
+  useUpdateWithdrawFeeMutation,
   useCreateWithdrawRequestMutation,
   useGetMyWithdrawRequestsQuery,
   useGetAllWithdrawRequestsQuery,

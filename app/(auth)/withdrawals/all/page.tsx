@@ -6,6 +6,7 @@ import CustomNoRowsOverlay from "@/components/CustomNoRowsOverlay";
 import Card from "@/components/new-ui/Card";
 import StatusChip from "@/components/new-ui/StatusChip";
 import Tabs, { Tab } from "@/components/new-ui/Tabs";
+import { withdrawCurrency, withdrawAmount, withdrawNet, withdrawMethod, formatWithdrawMoney, type WithdrawPayment } from "@/lib/withdrawDisplay";
 import { formatDate } from "@/lib/functions";
 import { useGetAllWithdrawRequestsQuery } from "@/redux/features/withdraw/withdrawApi";
 import {
@@ -18,8 +19,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 /* ────────── types ────────── */
-type Withdraw = {
+type Withdraw = WithdrawPayment & {
   _id: string;
+  id?: string;
   sl_no: number;
   name: string;
   customerId: string;
@@ -47,11 +49,11 @@ const AllWithdraw = () => {
     return withdraws.filter((w) => w.status === selectedTab);
   }, [withdraws, selectedTab]);
 
-  const sum = (arr: Withdraw[], key: keyof Withdraw) =>
-    arr.reduce((acc, w) => acc + (Number(w[key]) || 0), 0);
-
-  const totalAmount = sum(filtered, "amount");
-  const totalNetAmount = sum(filtered, "netAmount");
+  const totals = (net: boolean) => {
+    const grouped: Record<string, number> = {};
+    filtered.forEach(w => { const currency = withdrawCurrency(w); grouped[currency] = (grouped[currency] || 0) + (net ? withdrawNet(w) : withdrawAmount(w)); });
+    return Object.entries(grouped).map(([currency, amount]) => formatWithdrawMoney(amount, currency) + " " + currency).join(" · ") || "৳0.00 BDT";
+  };
 
   const statusCounts = useMemo(() => {
     const base = {
@@ -83,12 +85,13 @@ const AllWithdraw = () => {
     },
     { field: "customerId", headerName: "Customer ID", width: 130 },
     { field: "name", headerName: "Name", width: 180 },
+    { field: "payout_currency", headerName: "Currency", width: 90, renderCell: (p) => withdrawCurrency(p.row) },
     {
       field: "method",
       headerName: "Method",
       width: 120,
       renderCell: (p) => (
-        <span className="text-xs text-[rgb(var(--app-text-soft))]">{p.row.netWork}</span>
+        <span className="text-xs text-[rgb(var(--app-text-soft))]">{withdrawMethod(p.row)}</span>
       ), // demo
     },
     {
@@ -97,10 +100,7 @@ const AllWithdraw = () => {
       width: 130,
       renderCell: (p: GridRenderCellParams<WithdrawRow>) => (
         <span className="text-xs">
-          {Number(p.row.amount).toLocaleString("en-US", {
-            style: "currency",
-            currency: "USD",
-          })}
+          {formatWithdrawMoney(withdrawAmount(p.row), withdrawCurrency(p.row))}
         </span>
       ),
     },
@@ -110,10 +110,7 @@ const AllWithdraw = () => {
       width: 140,
       renderCell: (p: GridRenderCellParams<WithdrawRow>) => (
         <span className="text-xs text-emerald-400">
-          {Number(p.row.netAmount).toLocaleString("en-US", {
-            style: "currency",
-            currency: "USD",
-          })}
+          {formatWithdrawMoney(withdrawNet(p.row), withdrawCurrency(p.row))}
         </span>
       ),
     },
@@ -161,7 +158,7 @@ const AllWithdraw = () => {
   const rows: WithdrawRow[] = filtered
     .slice()
     .sort((a, b) => (a.sl_no ?? 0) - (b.sl_no ?? 0))
-    .map((w) => ({ id: w._id, ...w }));
+    .map((w) => ({ ...w, id: w.id || w._id }));
 
   /* ────────── UI ────────── */
   const tabs: Tab[] = [
@@ -192,10 +189,7 @@ const AllWithdraw = () => {
             <div className="flex items-center gap-3">
               <span className="text-[rgb(var(--app-text-muted))]">Amount</span>
               <span className="ml-auto text-lg font-semibold">
-                {Number(totalAmount).toLocaleString("en-US", {
-                  style: "currency",
-                  currency: "USD",
-                })}
+                {totals(false)}
               </span>
             </div>
           </Card>
@@ -203,10 +197,7 @@ const AllWithdraw = () => {
             <div className="flex items-center gap-3">
               <span className="text-[rgb(var(--app-text-muted))]">Net Amount</span>
               <span className="ml-auto text-lg font-semibold text-emerald-400">
-                {Number(totalNetAmount).toLocaleString("en-US", {
-                  style: "currency",
-                  currency: "USD",
-                })}
+                {totals(true)}
               </span>
             </div>
           </Card>
